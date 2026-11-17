@@ -4,7 +4,6 @@ on:
   push:
     paths:
       - ".github/release-requests/*.json"
-      - ".github/workflows/release-request.yml"
 
 permissions:
   contents: write
@@ -36,10 +35,14 @@ jobs:
             REQ="$(git diff --name-only "$BEFORE" "$SHA" -- '.github/release-requests/*.json' | head -n1 || true)"
           fi
           if [ -z "$REQ" ]; then
-            REQ="$(ls -1t .github/release-requests/*.json | head -n1)"
+            REQ="$(ls -1t .github/release-requests/*.json 2>/dev/null | head -n1 || true)"
+          fi
+          if [ -z "$REQ" ]; then
+            echo "No release request JSON found"
+            exit 1
           fi
           echo "Using $REQ"
-          python3 - "$REQ" <<'PYEOF'
+          python3 - "$REQ" <<'PYEOF2'
           import json, os, pathlib, sys
           req = json.loads(pathlib.Path(sys.argv[1]).read_text())
           version = (req.get("version") or "").strip()
@@ -59,7 +62,7 @@ jobs:
               if changelog and not changelog.endswith("\n"):
                   f.write("\n")
               f.write("EOF_CHANGELOG\n")
-          PYEOF
+          PYEOF2
 
   release:
     needs: parse
