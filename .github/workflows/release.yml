@@ -1,0 +1,388 @@
+name: Release
+
+# Builds multi-arch release binaries, self-update archives, GPL-3.0 runtime
+# source bundle, Ed25519-signed manifests/checksums, and GHCR container image
+# from private source repository veildawn/conflux-service.
+# Required secrets:
+#   SOURCE_REPO_TOKEN   - Token with Contents:read on veildawn/conflux-service
+#   RELEASE_PUBLIC_KEY  - Base64 32-byte Ed25519 public key
+#   RELEASE_SIGNING_KEY - Base64 64-byte Ed25519 private key
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version tag, e.g. v0.3.1"
+        required: true
+        type: string
+      source_ref:
+        description: "Source repo ref to build (branch, tag, or SHA)"
+        required: true
+        default: main
+        type: string
+      channel:
+        description: "Release channel"
+        required: true
+        default: stable
+        type: choice
+        options: [stable, prerelease]
+      changelog:
+        description: "更新内容 (plain text, omitted if blank)"
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        description: "Release version tag, e.g. v0.3.1"
+        required: true
+        type: string
+      source_ref:
+        description: "Source repo ref to build (branch, tag, or SHA)"
+        required: true
+        type: string
+      channel:
+        description: "Release channel"
+        required: false
+        type: string
+        default: stable
+      changelog:
+        description: "更新内容"
+        required: false
+        type: string
+        default: ""
+      since_sha:
+        description: "Optional SHA to prevent empty releases and auto-generate changelog"
+        required: false
+        type: string
+        default: ""
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REPO: veildawn/conflux-service
+  IMAGE: ghcr.io/veildawn/conflux-release
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      channel: ${{ steps.v.outputs.channel }}
+      source_ref: ${{ steps.v.outputs.source_ref }}
+      changelog: ${{ steps.v.outputs.changelog }}
+      should_release: ${{ steps.v.outputs.should_release }}
+    steps:
+      - id: v
+        env:
+          IN_VERSION: ${{ inputs.version }}
+          IN_CHANNEL: ${{ inputs.channel || 'stable' }}
+          IN_SOURCE_REF: ${{ inputs.source_ref }}
+          IN_CHANGELOG: ${{ inputs.changelog }}
+          IN_SINCE_SHA: ${{ inputs.since_sha }}
+          REF_NAME: ${{ github.ref_name }}
+          SOURCE_REPO_TOKEN: ${{ secrets.SOURCE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          CHANGELOG=""
+          SINCE_SHA=""
+          SHOULD_RELEASE=true
+
+          if [ -n "${IN_VERSION:-}" ]; then
+            V="$IN_VERSION"
+            R="${IN_SOURCE_REF:-main}"
+            CHANGELOG="${IN_CHANGELOG:-}"
+            SINCE_SHA="${IN_SINCE_SHA:-}"
+          else
+            V="$REF_NAME"
+            R="$REF_NAME"
+          fi
+
+          case "$V" in v*) : ;; *) V="v$V" ;; esac
+          VER="${V#v}"
+          if ! [[ "$VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "::error::version must match vX.Y.Z, got '$V'"
+            exit 1
+          fi
+          CH="$IN_CHANNEL"
+          if [[ "$VER" == *-* ]]; then
+            CH="prerelease"
+          fi
+          if [[ "$CH" != "stable" && "$CH" != "prerelease" ]]; then
+            echo "::error::invalid channel '$CH'"
+            exit 1
+          fi
+
+          if [ -z "${SOURCE_REPO_TOKEN:-}" ]; then
+            echo "::error::SOURCE_REPO_TOKEN secret is required to checkout $SOURCE_REPO"
+            exit 1
+          fi
+
+          tmp="$(mktemp -d)"
+          git -C "$tmp" init -q
+          git -C "$tmp" remote add origin "https://x-access-token:${SOURCE_REPO_TOKEN}@github.com/${SOURCE_REPO}.git"
+          if [ -n "$SINCE_SHA" ]; then
+            git -C "$tmp" fetch -q --depth=100 origin "$R"
+          else
+            git -C "$tmp" fetch -q --depth=1 origin "$R"
+          fi
+          RESOLVED="$(git -C "$tmp" rev-parse FETCH_HEAD)"
+          if [ -n "$SINCE_SHA" ]; then
+            if [ "$RESOLVED" = "$SINCE_SHA" ]; then
+              SHOULD_RELEASE=false
+            elif [ -z "$CHANGELOG" ]; then
+              if ! git -C "$tmp" cat-file -e "${SINCE_SHA}^{commit}" 2>/dev/null; then
+                git -C "$tmp" fetch -q --deepen=200 origin "$R" || true
+                git -C "$tmp" fetch -q --depth=1 origin "$SINCE_SHA" || true
+              fi
+              {
+                echo "更新"
+                git -C "$tmp" log --reverse --format='· %s' "${SINCE_SHA}..${RESOLVED}" \
+                  | sed '/^· Merge /d'
+              } > /tmp/auto-changelog.txt
+              if [ "$(wc -l < /tmp/auto-changelog.txt)" -le 1 ]; then
+                SHOULD_RELEASE=false
+              else
+                CHANGELOG="$(cat /tmp/auto-changelog.txt)"
+              fi
+            fi
+          fi
+          R="$RESOLVED"
+          rm -rf "$tmp"
+
+          {
+            echo "version=$V"
+            echo "channel=$CH"
+            echo "source_ref=$R"
+            echo "should_release=$SHOULD_RELEASE"
+            echo "changelog<<EOF_CHANGELOG"
+            printf '%s\n' "$CHANGELOG"
+            echo "EOF_CHANGELOG"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.should_release == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout private source at pinned SHA
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ needs.prepare.outputs.source_ref }}
+          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          path: _src
+          persist-credentials: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: _src/go.mod
+          cache: false
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.6.5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Verify T33 license boundary, test, and build release artifacts
+        env:
+          REL_TAG: ${{ needs.prepare.outputs.version }}
+          SRC_SHA: ${{ needs.prepare.outputs.source_ref }}
+          RELEASE_PUBLIC_KEY: ${{ secrets.RELEASE_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_PUBLIC_KEY}" ]; then
+            echo "::error::RELEASE_PUBLIC_KEY secret is required"
+            exit 1
+          fi
+          REL_VER="${REL_TAG#v}"
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          OUT_DIR="${RUNNER_TEMP}/release-out"
+          mkdir -p "$OUT_DIR"
+
+          echo "[release] Stage 1: Verify T33 GPL isolation boundary"
+          (cd _src && sh scripts/release/verify-license-boundary.sh >/dev/null)
+
+          echo "[release] Stage 2: Build frontend and verify Go tests"
+          pnpm --dir _src/web install --frozen-lockfile --silent
+          pnpm --dir _src/web run typecheck
+          pnpm --dir _src/web run test
+          pnpm --dir _src/web run build >/dev/null
+          (cd _src && go test ./internal/... ./cmd/... >/dev/null)
+          (cd _src/runtime && go test ./... >/dev/null)
+
+          echo "[release] Stage 3: Build multi-arch Linux binaries (amd64, arm64)"
+          LDFLAGS="-s -w \
+            -X main.version=${REL_VER} \
+            -X main.commit=${SRC_SHA} \
+            -X conflux-service/internal/buildinfo.Version=${REL_VER} \
+            -X conflux-service/internal/buildinfo.Commit=${SRC_SHA} \
+            -X conflux-service/internal/buildinfo.BuildDate=${BUILD_DATE} \
+            -X conflux-service/internal/buildinfo.BuildType=release \
+            -X conflux-service/internal/buildinfo.ReleasePublicKey=${RELEASE_PUBLIC_KEY}"
+
+          for arch in amd64 arm64; do
+            for bin in conflux-server conflux-agent conflux-updater conflux-ctl; do
+              (cd _src && CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath \
+                -ldflags="$LDFLAGS" \
+                -o "${OUT_DIR}/${bin}-${REL_VER}-linux-${arch}" "./cmd/${bin}") >/dev/null
+            done
+            (cd _src/runtime && CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath \
+              -ldflags="-s -w -X main.version=${REL_VER} -X main.commit=${SRC_SHA}" \
+              -o "${OUT_DIR}/conflux-runtime-${REL_VER}-linux-${arch}" ./cmd/conflux-runtime) >/dev/null
+
+            # Archive for in-app self-update (internal/update)
+            stage_dir="$(mktemp -d)"
+            cp "${OUT_DIR}/conflux-server-${REL_VER}-linux-${arch}" "${stage_dir}/conflux-server"
+            cp "${OUT_DIR}/conflux-ctl-${REL_VER}-linux-${arch}" "${stage_dir}/conflux-ctl"
+            chmod 0755 "${stage_dir}/conflux-server" "${stage_dir}/conflux-ctl"
+            tar -C "$stage_dir" -czf "${OUT_DIR}/conflux-server_${REL_VER}_linux_${arch}.tar.gz" conflux-server conflux-ctl
+            rm -rf "$stage_dir"
+          done
+
+          echo "[release] Stage 4: Package GPL corresponding runtime source & installers"
+          tar -czf "${OUT_DIR}/conflux-runtime-${REL_VER}-source.tar.gz" --exclude='.git' -C _src/runtime .
+          cp _src/deploy/install/install-server.sh "${OUT_DIR}/install-server.sh"
+          cp _src/deploy/install/install-agent.sh "${OUT_DIR}/install-agent.sh"
+          cp _src/deploy/install/release-pubkey.pem "${OUT_DIR}/release-pubkey.pem"
+
+          echo "[release] Stage 5: Scrub private workspace"
+          rm -rf _src
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: conflux-release-binaries
+          path: ${{ runner.temp }}/release-out/*
+          if-no-files-found: error
+          retention-days: 1
+
+  image:
+    needs: [prepare, build]
+    if: needs.prepare.outputs.should_release == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_digest: ${{ steps.build-push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ needs.prepare.outputs.source_ref }}
+          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          path: _src
+          persist-credentials: false
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        env:
+          REL_TAG: ${{ needs.prepare.outputs.version }}
+        run: |
+          echo "version=${REL_TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - id: build-push
+        uses: docker/build-push-action@v6
+        with:
+          context: _src
+          file: _src/deploy/compose/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          no-cache: true
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            COMMIT=${{ needs.prepare.outputs.source_ref }}
+            BUILD_DATE=${{ steps.meta.outputs.build_date }}
+            BUILD_TYPE=release
+            RELEASE_PUBLIC_KEY=${{ secrets.RELEASE_PUBLIC_KEY }}
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.version }}
+            ${{ env.IMAGE }}:latest
+
+      - if: always()
+        run: rm -rf _src
+
+  release:
+    needs: [prepare, build, image]
+    if: needs.prepare.outputs.should_release == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: conflux-release-binaries
+          path: dist
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ needs.prepare.outputs.source_ref }}
+          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          path: _signer_src
+          persist-credentials: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: _signer_src/go.mod
+          cache: false
+
+      - name: Generate checksums, Ed25519 signatures, and manifests
+        env:
+          REL_TAG: ${{ needs.prepare.outputs.version }}
+          REL_CHAN: ${{ needs.prepare.outputs.channel }}
+          SRC_SHA: ${{ needs.prepare.outputs.source_ref }}
+          IMG_DIGEST: ${{ needs.image.outputs.image_digest }}
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+          RELEASE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_SIGNING_KEY}" ]; then
+            echo "::error::RELEASE_SIGNING_KEY secret is empty"
+            exit 1
+          fi
+          REL_VER="${REL_TAG#v}"
+          (cd dist && sha256sum -- *.tar.gz conflux-*-linux-* > checksums.txt)
+          (cd _signer_src && go run ./scripts/release-sign "${GITHUB_WORKSPACE}/dist/checksums.txt")
+          (cd _signer_src && go run ./scripts/release-sign \
+            -manifests-dir "${GITHUB_WORKSPACE}/dist" \
+            -version "$REL_VER" \
+            -channel "$REL_CHAN" \
+            -repo "$RELEASE_REPO" \
+            -priv-sha "$SRC_SHA" \
+            -rt-sha "$SRC_SHA" \
+            -image-digest "$IMG_DIGEST")
+          test -s dist/checksums.txt.sig
+          test -s dist/manifests.json
+          rm -rf _signer_src
+
+      - name: Prepare release notes
+        env:
+          CHANGELOG: ${{ needs.prepare.outputs.changelog }}
+        run: |
+          printf '%s\n' "$CHANGELOG" > notes.md
+
+      - name: Publish immutable GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.version }}
+          name: Conflux ${{ needs.prepare.outputs.version }}
+          body_path: notes.md
+          prerelease: ${{ needs.prepare.outputs.channel == 'prerelease' }}
+          draft: false
+          files: dist/*

@@ -1,0 +1,15 @@
+Conflux Release Artifacts & License Notice
+
+Copyright (c) Conflux Contributors.
+
+1. Control Plane, Host Agent, CLI & Updater (`conflux-server`, `conflux-agent`,
+   `conflux-ctl`, `conflux-updater`)
+   Distributed in compiled binary and container image form from
+   https://github.com/veildawn/conflux-releases.
+
+2. Managed Dataplane Runtime (`conflux-runtime`)
+   The `conflux-runtime` binary incorporates upstream `sing-box`, which is
+   licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later).
+   In compliance with GPL-3.0 Section 6, every published release includes the
+   complete corresponding source archive `conflux-runtime-<version>-source.tar.gz`,
+   its SHA-256 checksum, and Ed25519-signed release manifest.

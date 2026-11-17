@@ -1,0 +1,21 @@
+name: Verify Release Repo
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify required release assets and public key
+        run: |
+          test -s release-pubkey.pem
+          test -s deploy/docker-compose.yml
+          openssl pkey -pubin -in release-pubkey.pem -noout
