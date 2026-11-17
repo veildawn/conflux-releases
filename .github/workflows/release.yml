@@ -187,6 +187,13 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Expose PostgreSQL tools for integration tests
+        run: |
+          PG_BINDIR="$(pg_config --bindir)"
+          test -x "$PG_BINDIR/initdb"
+          test -x "$PG_BINDIR/pg_ctl"
+          echo "$PG_BINDIR" >> "$GITHUB_PATH"
+
       - name: Verify T33 license boundary, test, and build release artifacts
         env:
           REL_TAG: ${{ needs.prepare.outputs.version }}
