@@ -219,8 +219,29 @@ jobs:
           pnpm --dir _src/web run typecheck
           pnpm --dir _src/web run test
           pnpm --dir _src/web run build >/dev/null
-          (cd _src && go test ./internal/... ./cmd/... >/dev/null)
-          (cd _src/runtime && go test ./... >/dev/null)
+          # Keep private test output out of public logs; expose failed test names only.
+          run_go_tests() {
+            local source_dir="$1"
+            shift
+            local test_log="${RUNNER_TEMP}/conflux-tests.json"
+            if ! (cd "$source_dir" && go test -p 4 -json "$@") > "$test_log"; then
+              python3 - "$test_log" <<'PYTEST'
+          import json, sys
+          for line in open(sys.argv[1]):
+              try:
+                  event = json.loads(line)
+              except ValueError:
+                  continue
+              if event.get("Action") == "fail":
+                  print("::error::Go test failed: " + event.get("Package", "") + " " + event.get("Test", ""))
+          PYTEST
+              rm -f "$test_log"
+              return 1
+            fi
+            rm -f "$test_log"
+          }
+          run_go_tests _src ./internal/... ./cmd/...
+          run_go_tests _src/runtime ./...
 
           echo "[release] Stage 3: Build multi-arch Linux binaries (amd64, arm64)"
           LDFLAGS="-s -w \
