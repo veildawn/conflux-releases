@@ -81,7 +81,7 @@ jobs:
         with:
           repository: ${{ env.SOURCE_REPO }}
           ref: ${{ inputs.source_ref || github.ref_name }}
-          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          token: ${{ secrets.SOURCE_REPO_TOKEN || github.token }}
           ssh-key: ${{ secrets.SOURCE_REPO_SSH_KEY }}
           path: _prepare_src
           fetch-depth: 0
@@ -169,7 +169,7 @@ jobs:
         with:
           repository: ${{ env.SOURCE_REPO }}
           ref: ${{ needs.prepare.outputs.source_ref }}
-          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          token: ${{ secrets.SOURCE_REPO_TOKEN || github.token }}
           ssh-key: ${{ secrets.SOURCE_REPO_SSH_KEY }}
           path: _src
           persist-credentials: false
@@ -282,7 +282,7 @@ jobs:
         with:
           repository: ${{ env.SOURCE_REPO }}
           ref: ${{ needs.prepare.outputs.source_ref }}
-          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          token: ${{ secrets.SOURCE_REPO_TOKEN || github.token }}
           ssh-key: ${{ secrets.SOURCE_REPO_SSH_KEY }}
           path: _src
           persist-credentials: false
@@ -339,7 +339,7 @@ jobs:
         with:
           repository: ${{ env.SOURCE_REPO }}
           ref: ${{ needs.prepare.outputs.source_ref }}
-          token: ${{ secrets.SOURCE_REPO_TOKEN }}
+          token: ${{ secrets.SOURCE_REPO_TOKEN || github.token }}
           ssh-key: ${{ secrets.SOURCE_REPO_SSH_KEY }}
           path: _signer_src
           persist-credentials: false
