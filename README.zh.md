@@ -2,54 +2,178 @@
 
 [English](README.md)
 
-**Conflux** 团队多租户代理节点管理平台的公开二进制、安装脚本、Docker 镜像与 GPL-3.0 运行时源码合规产物发布仓库。支持五种自建协议（`VLESS+REALITY`、`Hysteria2`、`Trojan`、`Shadowsocks 2022`、`TUIC v5`）、外部订阅聚合与只读共享、6 类主流客户端精确编译、跨主机守恒额度账本（`L = U + R + A`）、Cloudflare DNS 与 ACME 自动化，以及内嵌双语控制台。
+**Conflux** 的公开下载、部署模板、CI 与版本发布仓库。Conflux 是多租户代理节点管理平台，支持五种受管协议、外部订阅共享、六类客户端订阅编译、守恒流量额度（`L = U + R + A`）、DNS/ACME 自动化与双语控制台。
 
-## 快速部署
+首个稳定版本为 [v0.1.0](https://github.com/veildawn/conflux-releases/releases/tag/v0.1.0)，后续版本见[发布列表](https://github.com/veildawn/conflux-releases/releases)。应用源码在私有仓库 `veildawn/conflux-service` 中维护；**所有 GitHub Actions 均在本公开仓库运行**，私有仓库的 Actions 已关闭。
 
-### Linux 控制端安装（systemd，`amd64` / `arm64`）
+## 下载
+
+| 产物 | 支持平台 |
+| --- | --- |
+| `conflux-server`、`conflux-agent`、`conflux-runtime`、`conflux-updater`、`conflux-ctl` | Linux `amd64` / `arm64` |
+| `conflux-ctl` | macOS（`darwin`）`amd64` / `arm64` |
+| `ghcr.io/veildawn/conflux-release:0.1.0` | Linux `amd64` / `arm64` 容器镜像 |
+| `conflux-runtime-0.1.0-source.tar.gz` | 对应运行时源码、依赖锁定文件、构建说明和许可证声明 |
+
+[GHCR 镜像](https://github.com/veildawn/conflux-releases/pkgs/container/conflux-release)已公开，无需登录即可拉取。镜像包名为 **`conflux-release`**（单数），仓库名为 **`conflux-releases`**（复数）。部署时固定版本或镜像摘要，便于复现；`latest` 是可变标签。
+
+## 安装
+
+以下示例明确安装 **0.1.0**。原生控制端与 Agent 安装器支持使用 systemd 的 Debian 12/13、Ubuntu 22.04/24.04/26.04，以及 `amd64` / `arm64` 架构；需要 root、本地存储、`curl`、支持 Ed25519 的 OpenSSL、`sha256sum` 和 Python 3。独立 CLI 支持 Linux 和 macOS。
+
+### 下载并校验安装脚本
+
+在新的工作目录中执行。校验清单、签名与脚本必须来自同一版本，验签成功后再执行安装器：
 
 ```sh
-curl -fsSL https://github.com/veildawn/conflux-releases/releases/latest/download/release-pubkey.pem -o /tmp/conflux-release-pubkey.pem
-curl -fsSL https://github.com/veildawn/conflux-releases/releases/latest/download/install-server.sh \
-  | sudo bash -s -- \
-    --public-base-url https://conflux.example.com \
-    --database-url 'postgres://conflux:password@127.0.0.1:5432/conflux?sslmode=disable' \
-    --release-pubkey-pem /tmp/conflux-release-pubkey.pem
+set -eu
+RELEASE_VERSION=0.1.0
+RELEASE_URL="https://github.com/veildawn/conflux-releases/releases/download/v${RELEASE_VERSION}"
+for file in release-pubkey.pem checksums.txt checksums.txt.sig install-server.sh install-agent.sh install-ctl.sh; do
+  curl -fsSL "$RELEASE_URL/$file" -o "$file"
+done
+
+# DER 编码 SPKI 公钥的 SHA-256 指纹。
+EXPECTED_KEY_SHA256=5e7b7b3c6bf91b15c5a7afcf93fe9904ab329d958d63fba5816566e2bab48ea7
+ACTUAL_KEY_SHA256="$(openssl pkey -pubin -in release-pubkey.pem -outform DER | openssl dgst -sha256 | awk '{print $NF}')"
+test "$ACTUAL_KEY_SHA256" = "$EXPECTED_KEY_SHA256"
+openssl base64 -d -A -in checksums.txt.sig -out checksums.txt.sig.bin
+openssl pkeyutl -verify -pubin -inkey release-pubkey.pem -rawin \
+  -in checksums.txt -sigfile checksums.txt.sig.bin
+python3 - <<'PY'
+import hashlib
+from pathlib import Path
+sums = dict(line.split()[::-1] for line in Path("checksums.txt").read_text().splitlines())
+for name in ("release-pubkey.pem", "install-server.sh", "install-agent.sh", "install-ctl.sh"):
+    actual = hashlib.sha256(Path(name).read_bytes()).hexdigest()
+    if actual != sums[name]:
+        raise SystemExit("SHA-256 mismatch: " + name)
+print("Installer signatures and checksums verified")
+PY
 ```
 
-### 受管主机 Agent + Runtime 接入（systemd，`amd64` / `arm64`）
+以上指纹及仓库中的 [release-pubkey.pem](release-pubkey.pem) 是公开的信任参考。保留可信副本用于后续校验；仅从同一个下载地址同时获取公钥和签名，并不能独立建立信任。
 
-在管理后台「主机管理 → 接入 VPS」获取 15 分钟一次性注册令牌后，在目标 VPS 上执行：
+### Linux 控制端
+
+在已校验的下载目录中执行，填写已有 PostgreSQL 数据库连接和对外 HTTPS 地址：
 
 ```sh
-curl -fsSL https://github.com/veildawn/conflux-releases/releases/latest/download/release-pubkey.pem -o /tmp/conflux-release-pubkey.pem
-curl -fsSL https://github.com/veildawn/conflux-releases/releases/latest/download/install-agent.sh \
-  | sudo bash -s -- \
-    --server https://conflux.example.com \
-    --enroll-token '<15分钟注册令牌>' \
-    --release-pubkey-pem /tmp/conflux-release-pubkey.pem
+sudo bash ./install-server.sh --version 0.1.0 \
+  --public-base-url https://conflux.example.com \
+  --database-url 'postgres://conflux:REPLACE_WITH_PASSWORD@127.0.0.1:5432/conflux?sslmode=disable' \
+  --release-pubkey-pem "$PWD/release-pubkey.pem"
+sudo systemctl status conflux-server
+sudo journalctl -u conflux-server -n 50 --no-pager
 ```
 
-### Docker Compose 部署（`amd64` / `arm64`）
+原生安装默认监听 `127.0.0.1:8080`，需要为公开地址配置支持 WebSocket 的 HTTPS 反向代理。使用新数据库启动时，日志会输出有效期 30 分钟的一次性初始化令牌；打开控制台完成初始化，并为管理员启用 MFA。备份 `/etc/conflux`（包括主密钥和签名密钥）、`/var/lib/conflux` 以及 PostgreSQL 数据。
+
+### 受管主机 Agent 与 Runtime
+
+在管理后台「主机管理 → 接入 VPS」生成 15 分钟有效的注册令牌。在目标主机上将令牌存入 root 可读、权限为 `0600` 的文件，再运行已校验的安装器：
+
+```sh
+sudo bash ./install-agent.sh --version 0.1.0 \
+  --server https://conflux.example.com \
+  --enroll-token-file /root/conflux-enroll-token \
+  --release-pubkey-pem "$PWD/release-pubkey.pem"
+sudo systemctl status conflux-agent conflux-runtime
+```
+
+SQLite WAL 账本必须保存在本地存储。只有显式传入 `--configure-firewall` 时安装器才会修改防火墙规则；请按实际协议端口配置主机防火墙和云安全组。
+
+### 远程 CLI
+
+在已校验的下载目录中执行：
+
+```sh
+sh ./install-ctl.sh --version 0.1.0 --install-dir "$HOME/.local/bin"
+export PATH="$HOME/.local/bin:$PATH"
+conflux-ctl version
+
+# 在控制台「账户与安全 -> API 访问令牌」创建具有所需范围的令牌。
+conflux-ctl config set --server https://conflux.example.com --token cfx_pat_... --profile default
+conflux-ctl whoami
+conflux-ctl status
+conflux-ctl ops tasks
+conflux-ctl ops alerts
+```
+
+原生控制端和 Agent 安装器会校验二进制 manifest 的 Ed25519 签名及 SHA-256。独立 CLI 安装器会检查可用的 SHA-256 元数据，但不会自行验证校验清单签名。如需手动验证 CLI 二进制的签名来源，请从同一版本下载对应文件，计算其 SHA-256，并与上面已验签的 `checksums.txt` 比较。
+
+### Docker Compose
+
+将 [Compose 模板](deploy/docker-compose.yml)下载到部署目录：
 
 ```sh
 mkdir -p conflux && cd conflux
 curl -fsSL https://raw.githubusercontent.com/veildawn/conflux-releases/main/deploy/docker-compose.yml -o docker-compose.yml
 ```
 
-在同目录创建 `.env`（填写 `CONFLUX_PUBLIC_BASE_URL`、`CONFLUX_MASTER_KEY_HEX`（由 `openssl rand -hex 32` 生成）以及 `POSTGRES_PASSWORD`），然后启动：
+在同目录创建权限为 `0600` 的 `.env`。以下两个密钥占位值应分别使用 `openssl rand -hex 32` 生成一次并保存：
 
-```sh
-docker compose up -d
+```dotenv
+CONFLUX_PUBLIC_BASE_URL=https://conflux.example.com
+CONFLUX_MASTER_KEY_HEX=REPLACE_WITH_PERSISTENT_64_HEX_CHARACTERS
+POSTGRES_PASSWORD=REPLACE_WITH_A_RANDOM_PASSWORD
+CONFLUX_SERVER_IMAGE=ghcr.io/veildawn/conflux-release:0.1.0
 ```
 
-无论是原生 `systemd` 还是 Docker Compose 部署，均支持在控制面板**侧边栏顶部版本徽章**内一键检查更新并安全升级（Docker 模式下无需挂载 `/var/run/docker.sock`，控制端会将通过 Ed25519 验签与 SHA-256 校验的新二进制落盘到持久化卷 `/var/lib/conflux/bin` 并平滑重启接管）。
+```sh
+chmod 600 .env
+docker compose config --quiet
+docker compose up -d
+docker compose ps
+docker compose logs --tail=50 conflux-server
+```
 
-## 签名校验与 GPL-3.0 源码合规
+默认绑定 `127.0.0.1:8080`，需要配置 HTTPS/WebSocket 反向代理。PostgreSQL 数据位于 `pgdata` 卷，服务端状态位于挂载到 `/var/lib/conflux` 的 `conflux-data` 卷。备份数据卷和 `.env`，每次重启复用同一主密钥。使用服务端日志中的令牌完成首次初始化。
 
-每个 Release 均包含：
-- `conflux-server_<version>_linux_<arch>.tar.gz`（控制端一键自更新压缩包）
-- 多架构独立二进制（`conflux-server`、`conflux-agent`、`conflux-runtime`、`conflux-updater`、`conflux-ctl`）
-- `checksums.txt` 与 `checksums.txt.sig`（对应 `release-pubkey.pem` 的 Ed25519 签名）
-- 各组件 `*.manifest.json` 及汇总 `manifests.json`
-- `conflux-runtime-<version>-source.tar.gz`（与所发布 `conflux-runtime` 二进制完全对应的 GPL-3.0-or-later 源码包）
+原生和 Compose 部署均支持通过侧边栏版本徽章执行应用内升级。升级会验证已签名的校验清单和二进制摘要；Docker 模式将替换二进制保存在持久化数据卷中，无需挂载 `/var/run/docker.sock`。
+
+## 发布产物与运行时源码
+
+每个版本包含：
+
+- 五个组件的 Linux 双架构独立二进制，以及 macOS 双架构 CLI。
+- `conflux-server_<version>_linux_<arch>.tar.gz`，包含供自更新使用的 `conflux-server` 和 `conflux-ctl`。
+- `install-server.sh`、`install-agent.sh`、`install-ctl.sh` 与 `release-pubkey.pem`。
+- `checksums.txt`、其 base64 编码的 Ed25519 签名 `checksums.txt.sig`，以及内容相同的兼容文件 `SHA256SUMS.txt`。校验清单覆盖二进制、压缩包、安装器和公钥。
+- 十份 Linux 组件 manifest、一份镜像摘要 manifest 及汇总 `manifests.json`，使用 `conflux-release-manifest-v1` 域签名。macOS CLI 由已签名的校验清单覆盖，没有独立 manifest。
+- 与 runtime 二进制来自同一源码提交的 `conflux-runtime-<version>-source.tar.gz`，包含运行时模块的 README、许可证声明及固定依赖。参见 [LICENSE](LICENSE)。
+
+如需构建发布的运行时源码，解压源码包，使用其中 `go.mod` 声明的 Go 版本，再执行 `go test ./...` 和 `go build ./cmd/conflux-runtime`。本公开仓库本身不包含应用源码树。
+
+## 维护与发布流程
+
+| 流水线 | 触发方式与用途 |
+| --- | --- |
+| [Verify Release Repo](.github/workflows/ci.yml) | 公开仓库 `main` 分支推送及 PR；检查公钥和 Compose 文件 |
+| [Source CI](.github/workflows/source-ci.yml) | 手动指定 `source_ref`，或 `source-ci` 类型的 `repository_dispatch`；验证私有源码、前端、两个 Go 模块的竞态测试及 Linux 交叉构建 |
+| [Release](.github/workflows/release.yml) | 手动指定版本、源码和通道，可复用工作流调用，或公开仓库 `v*` 标签推送；构建、签名并发布产物与镜像 |
+| [Release request](.github/workflows/release-request.yml) | 推送变更 `.github/release-requests/*.json`；调用可复用发布流水线 |
+
+仅推送源码不会自动启动 Source CI。在有权限的**私有源码仓库工作目录**中，提交并推送后执行：
+
+```sh
+SOURCE_SHA="$(git rev-parse HEAD)"
+gh workflow run source-ci.yml --repo veildawn/conflux-releases -f source_ref="$SOURCE_SHA"
+gh run list --repo veildawn/conflux-releases --workflow source-ci.yml --limit 5
+```
+
+该提交通过 CI 后，选择尚未使用的版本，在源码仓库创建对应标签，再触发公开仓库发布：
+
+```sh
+RELEASE_TAG=vX.Y.Z  # 替换为下一个尚未使用的版本。
+git tag -a "$RELEASE_TAG" "$SOURCE_SHA" -m "Conflux $RELEASE_TAG"
+git push origin "$RELEASE_TAG"
+gh workflow run release.yml --repo veildawn/conflux-releases \
+  -f version="$RELEASE_TAG" -f source_ref="$SOURCE_SHA" -f channel=stable
+```
+
+预发布使用 `channel=prerelease`，可选填写 `changelog`。发布流水线会将源码引用解析成完整 SHA，建议直接传入完整 SHA。源码标签标识应用提交，公开发布标签属于本发行仓库，两者的提交 SHA 不同。通过公开仓库标签触发构建时，私有源码仓库必须已有同名标签。保留已发布版本，修复应使用新版本号。
+
+必需的 Actions secrets 为 `SOURCE_REPO_SSH_KEY`（私有源码仓库的只读 deploy key）、`RELEASE_PUBLIC_KEY`（base64 编码的 32 字节 Ed25519 公钥）和 `RELEASE_SIGNING_KEY`（base64 编码的 64 字节 Ed25519 私钥）。发布流水线还支持以 `SOURCE_REPO_TOKEN` 替代源码访问方式；Source CI 使用 SSH key。镜像发布使用具有 `packages: write` 权限的工作流 `GITHUB_TOKEN`。仓库公钥、安装器公钥和签名身份必须保持一致。
+
+宣告发布完成前，应确认公开 Actions 成功、发布文件齐全、签名与 SHA-256 正确、运行时源码与二进制对应，并验证两个架构的镜像均可匿名访问。维护工作流或文档时遵循 [AGENTS.md](AGENTS.md)，并同步更新本文件与 [README.md](README.md)。
