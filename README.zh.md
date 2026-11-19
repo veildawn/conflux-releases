@@ -4,7 +4,7 @@
 
 **Conflux** 的公开下载、部署模板、CI 与版本发布仓库。Conflux 是多租户代理节点管理平台，支持五种受管协议、外部订阅共享、六类客户端订阅编译、守恒流量额度（`L = U + R + A`）、DNS/ACME 自动化与双语控制台。
 
-首个稳定版本为 [v0.1.0](https://github.com/veildawn/conflux-releases/releases/tag/v0.1.0)，后续版本见[发布列表](https://github.com/veildawn/conflux-releases/releases)。应用源码在私有仓库 `veildawn/conflux-service` 中维护；**所有 GitHub Actions 均在本公开仓库运行**，私有仓库的 Actions 已关闭。
+首个稳定版本为 [v0.0.1](https://github.com/veildawn/conflux-releases/releases/tag/v0.0.1)，后续版本见[发布列表](https://github.com/veildawn/conflux-releases/releases)。应用源码在私有仓库 `veildawn/conflux-service` 中维护；**所有 GitHub Actions 均在本公开仓库运行**，私有仓库的 Actions 已关闭。
 
 ## 下载
 
@@ -12,14 +12,14 @@
 | --- | --- |
 | `conflux-server`、`conflux-agent`、`conflux-runtime`、`conflux-updater`、`conflux-ctl` | Linux `amd64` / `arm64` |
 | `conflux-ctl` | macOS（`darwin`）`amd64` / `arm64` |
-| `ghcr.io/veildawn/conflux-release:0.1.0` | Linux `amd64` / `arm64` 容器镜像 |
-| `conflux-runtime-0.1.0-source.tar.gz` | 对应运行时源码、依赖锁定文件、构建说明和许可证声明 |
+| `ghcr.io/veildawn/conflux-release:0.0.1` | Linux `amd64` / `arm64` 容器镜像 |
+| `conflux-runtime-0.0.1-source.tar.gz` | 对应运行时源码、依赖锁定文件、构建说明和许可证声明 |
 
 [GHCR 镜像](https://github.com/veildawn/conflux-releases/pkgs/container/conflux-release)已公开，无需登录即可拉取。镜像包名为 **`conflux-release`**（单数），仓库名为 **`conflux-releases`**（复数）。部署时固定版本或镜像摘要，便于复现；`latest` 是可变标签。
 
 ## 安装
 
-以下示例明确安装 **0.1.0**。原生控制端与 Agent 安装器支持使用 systemd 的 Debian 12/13、Ubuntu 22.04/24.04/26.04，以及 `amd64` / `arm64` 架构；需要 root、本地存储、`curl`、支持 Ed25519 的 OpenSSL、`sha256sum` 和 Python 3。独立 CLI 支持 Linux 和 macOS。
+以下示例明确安装 **0.0.1**。原生控制端与 Agent 安装器支持使用 systemd 的 Debian 12/13、Ubuntu 22.04/24.04/26.04，以及 `amd64` / `arm64` 架构；需要 root、本地存储、`curl`、支持 Ed25519 的 OpenSSL、`sha256sum` 和 Python 3。独立 CLI 支持 Linux 和 macOS。
 
 ### 下载并校验安装脚本
 
@@ -27,7 +27,7 @@
 
 ```sh
 set -eu
-RELEASE_VERSION=0.1.0
+RELEASE_VERSION=0.0.1
 RELEASE_URL="https://github.com/veildawn/conflux-releases/releases/download/v${RELEASE_VERSION}"
 for file in release-pubkey.pem checksums.txt checksums.txt.sig install-server.sh install-agent.sh install-ctl.sh; do
   curl -fsSL "$RELEASE_URL/$file" -o "$file"
@@ -59,7 +59,7 @@ PY
 在已校验的下载目录中执行，填写已有 PostgreSQL 数据库连接和对外 HTTPS 地址：
 
 ```sh
-sudo bash ./install-server.sh --version 0.1.0 \
+sudo bash ./install-server.sh --version 0.0.1 \
   --public-base-url https://conflux.example.com \
   --database-url 'postgres://conflux:REPLACE_WITH_PASSWORD@127.0.0.1:5432/conflux?sslmode=disable' \
   --release-pubkey-pem "$PWD/release-pubkey.pem"
@@ -74,7 +74,7 @@ sudo journalctl -u conflux-server -n 50 --no-pager
 在管理后台「主机管理 → 接入 VPS」生成 15 分钟有效的注册令牌。在目标主机上将令牌存入 root 可读、权限为 `0600` 的文件，再运行已校验的安装器：
 
 ```sh
-sudo bash ./install-agent.sh --version 0.1.0 \
+sudo bash ./install-agent.sh --version 0.0.1 \
   --server https://conflux.example.com \
   --enroll-token-file /root/conflux-enroll-token \
   --release-pubkey-pem "$PWD/release-pubkey.pem"
@@ -88,7 +88,7 @@ SQLite WAL 账本必须保存在本地存储。只有显式传入 `--configure-f
 在已校验的下载目录中执行：
 
 ```sh
-sh ./install-ctl.sh --version 0.1.0 --install-dir "$HOME/.local/bin"
+sh ./install-ctl.sh --version 0.0.1 --install-dir "$HOME/.local/bin"
 export PATH="$HOME/.local/bin:$PATH"
 conflux-ctl version
 
@@ -117,7 +117,7 @@ curl -fsSL https://raw.githubusercontent.com/veildawn/conflux-releases/main/depl
 CONFLUX_PUBLIC_BASE_URL=https://conflux.example.com
 CONFLUX_MASTER_KEY_HEX=REPLACE_WITH_PERSISTENT_64_HEX_CHARACTERS
 POSTGRES_PASSWORD=REPLACE_WITH_A_RANDOM_PASSWORD
-CONFLUX_SERVER_IMAGE=ghcr.io/veildawn/conflux-release:0.1.0
+CONFLUX_SERVER_IMAGE=ghcr.io/veildawn/conflux-release:0.0.1
 ```
 
 ```sh

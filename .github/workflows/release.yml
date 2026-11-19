@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version tag, e.g. v0.1.0"
+        description: "Release version tag, e.g. v0.0.1"
         required: true
         type: string
       source_ref:
@@ -34,7 +34,7 @@ on:
   workflow_call:
     inputs:
       version:
-        description: "Release version tag, e.g. v0.1.0"
+        description: "Release version tag, e.g. v0.0.1"
         required: true
         type: string
       source_ref:
