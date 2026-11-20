@@ -12,7 +12,7 @@ The current stable release is [v0.0.3](https://github.com/veildawn/conflux-relea
 | --- | --- |
 | `conflux-server`, `conflux-agent`, `conflux-runtime`, `conflux-updater`, `conflux-ctl` | Linux `amd64` / `arm64` |
 | `conflux-ctl` | macOS (`darwin`) `amd64` / `arm64` |
-| `conflux-probe` | Linux, macOS, and Windows on `amd64` / `arm64` |
+| `conflux-probe` (v0.0.3) | Linux, macOS, and Windows on `amd64` / `arm64` |
 | `ghcr.io/veildawn/conflux-release:0.0.3` | Linux `amd64` / `arm64` container image |
 | `conflux-runtime-0.0.3-source.tar.gz` | Source for runtime `1.14.4-cfx3`, dependency lockfiles, build instructions, and license notice |
 
@@ -135,20 +135,11 @@ Native and Compose deployments support in-app updates through the sidebar versio
 
 ## User network probes
 
-Download the `conflux-probe` asset for your device from the same release as your control plane. The asset is named `conflux-probe-<version>-<os>-<arch>`, with an `.exe` suffix on Windows. The operating systems are `linux`, `darwin`, and `windows`, each for `amd64` and `arm64`. Verify `checksums.txt` from that release as above. Compare its entry for your asset with the hash from `sha256sum` (Linux), `shasum -a 256` (macOS), or `Get-FileHash -Algorithm SHA256` (Windows).
+The development version following v0.0.3 checks your current network automatically while the admin console's Nodes page is visible. Upgrade the control plane, node agent and runtime together. Open a remote node to see its endpoint and separate TCP or UDP results. **Check again** starts both the browser and server checks.
 
-Open a remote node in the Conflux admin console and select **Probe from user device**. On the device and network you want to test, run the tool with your own sing-box subscription export.
+The browser uses WebRTC on the node's configured service port. VLESS + REALITY and Trojan use TCP, Hysteria2 and TUIC use UDP, and Shadowsocks 2022 uses the transports enabled on the instance. With port hopping, the result covers the one entrance shown. A transport is reachable when the node receives its authenticated response. After ten seconds without a receipt, that transport is unconfirmed. Results stay fresh for three minutes. Scheduled server health checks continue when the console is closed.
 
-```sh
-chmod +x ./conflux-probe-0.0.3-darwin-arm64
-./conflux-probe-0.0.3-darwin-arm64 --server https://conflux.example.com --config ./sing-box.json
-```
-
-```powershell
-.\conflux-probe-0.0.3-windows-amd64.exe --server https://conflux.example.com --config .\sing-box.json
-```
-
-Replace the example version and filename with the asset you downloaded. Paste the console's pairing code when prompted. The code expires after five minutes. If the export contains multiple identical matches, specify the outbound tag with `--node-tag`. The export and its credentials stay on the device. Conflux shows the returned result alongside the control-plane result.
+For the published v0.0.3 release, follow the [v0.0.3 device probe instructions](https://github.com/veildawn/conflux-releases/blob/v0.0.3/README.md#user-network-probes).
 
 ## Release Contents and Runtime Source
 
@@ -158,7 +149,7 @@ Each release includes:
 - `conflux-server_<version>_linux_<arch>.tar.gz` containing `conflux-server` and `conflux-ctl` for self-update.
 - `install-server.sh`, `install-agent.sh`, `install-ctl.sh`, and `release-pubkey.pem`.
 - Signed `checksums.txt`, its base64 Ed25519 signature `checksums.txt.sig`, and the identical `SHA256SUMS.txt` compatibility alias. The checksum list covers binaries, archives, installers, and the public key.
-- Ten Linux component manifests, a container-image digest manifest, and combined `manifests.json`, signed with the `conflux-release-manifest-v1` domain. macOS CLI and user network probe assets are covered by signed checksums.
+- Ten Linux component manifests, a container-image digest manifest, and combined `manifests.json`, signed with the `conflux-release-manifest-v1` domain. macOS CLI assets are covered by signed checksums.
 - `conflux-runtime-<version>-source.tar.gz` from the same source commit as the runtime binary. It contains the runtime module's README, license notice, and pinned dependencies. See [LICENSE](LICENSE).
 
 To build the published runtime source, extract its archive, use the Go version declared in its `go.mod`, and run `go test ./...` and `go build ./cmd/conflux-runtime`. The public repository itself does not contain the application source tree.
@@ -168,7 +159,7 @@ To build the published runtime source, extract its archive, use the Go version d
 | Workflow | Trigger and purpose |
 | --- | --- |
 | [Verify Release Repo](.github/workflows/ci.yml) | Public `main` pushes and pull requests; checks the public key and Compose file |
-| [Source CI](.github/workflows/source-ci.yml) | Manual `source_ref` or `repository_dispatch` type `source-ci`; verifies private source, frontend, both Go modules with race detection, and cross-builds the Linux components and the user network probe |
+| [Source CI](.github/workflows/source-ci.yml) | Manual `source_ref` or `repository_dispatch` type `source-ci`; verifies private source, frontend, both Go modules with race detection, and cross-builds the Linux components |
 | [Release](.github/workflows/release.yml) | Manual version/source/channel inputs, reusable workflow call, or public `v*` tag push; builds, signs, and publishes artifacts and the image |
 | [Release request](.github/workflows/release-request.yml) | Push changing `.github/release-requests/*.json`; invokes the reusable release workflow |
 

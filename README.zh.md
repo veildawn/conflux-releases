@@ -12,7 +12,7 @@
 | --- | --- |
 | `conflux-server`、`conflux-agent`、`conflux-runtime`、`conflux-updater`、`conflux-ctl` | Linux `amd64` / `arm64` |
 | `conflux-ctl` | macOS（`darwin`）`amd64` / `arm64` |
-| `conflux-probe` | Linux、macOS 和 Windows，均支持 `amd64` / `arm64` |
+| `conflux-probe` (v0.0.3) | Linux、macOS 和 Windows，均支持 `amd64` / `arm64` |
 | `ghcr.io/veildawn/conflux-release:0.0.3` | Linux `amd64` / `arm64` 容器镜像 |
 | `conflux-runtime-0.0.3-source.tar.gz` | 运行时 `1.14.4-cfx3` 的对应源码、依赖锁定文件、构建说明和许可证声明 |
 
@@ -135,20 +135,11 @@ docker compose logs --tail=50 conflux-server
 
 ## 用户网络探测
 
-从与控制端版本相同的 Release 下载适合当前设备的 `conflux-probe` 文件。文件名为 `conflux-probe-<version>-<os>-<arch>`，Windows 文件带 `.exe` 后缀。`linux`、`darwin`、`windows` 均提供 `amd64` 和 `arm64` 版本。按上文步骤验证同一 Release 的 `checksums.txt` 签名。用 Linux 的 `sha256sum`、macOS 的 `shasum -a 256` 或 Windows 的 `Get-FileHash -Algorithm SHA256` 计算文件摘要，并与清单中的对应条目核对。
+v0.0.3 之后的开发版会在管理控制台的节点页可见时自动检测当前网络。请一并升级控制端、节点 Agent 和 Runtime。在远程节点详情中可以看到实际检测的入口和各传输协议的结果。点击 **重新检测** 可同时刷新浏览器和服务端的检测结果。
 
-在 Conflux 管理控制台打开一个远程节点，选择 **从用户设备探测**。在需要测试的设备和网络上运行工具，并指定自己的 sing-box 订阅导出文件。
+浏览器通过 WebRTC 检测节点的业务端口。VLESS + REALITY 和 Trojan 检测 TCP，Hysteria2 和 TUIC 检测 UDP，Shadowsocks 2022 按实例启用的传输协议检测。启用端口跳跃时，结果仅覆盖页面显示的一个入口。节点收到经认证的回应后，对应协议显示「可达」。10 秒内未收到回执则显示「超时，未确认」。结果 3 分钟内有效。关闭页面后，服务端仍会定时检查节点健康。
 
-```sh
-chmod +x ./conflux-probe-0.0.3-darwin-arm64
-./conflux-probe-0.0.3-darwin-arm64 --server https://conflux.example.com --config ./sing-box.json
-```
-
-```powershell
-.\conflux-probe-0.0.3-windows-amd64.exe --server https://conflux.example.com --config .\sing-box.json
-```
-
-将示例版本号和文件名替换成实际下载的文件。按工具提示粘贴配对码，配对码 5 分钟内有效。若导出中有多个相同的匹配项，用 `--node-tag` 指定节点标签。订阅文件和节点凭据保留在设备上。控制台将回传结果与控制端结果一起展示。
+已发布的 v0.0.3 使用随版本提供的工具，操作见 [v0.0.3 用户网络探测说明](https://github.com/veildawn/conflux-releases/blob/v0.0.3/README.zh.md#用户网络探测)。
 
 ## 发布产物与运行时源码
 
@@ -158,7 +149,7 @@ chmod +x ./conflux-probe-0.0.3-darwin-arm64
 - `conflux-server_<version>_linux_<arch>.tar.gz`，包含供自更新使用的 `conflux-server` 和 `conflux-ctl`。
 - `install-server.sh`、`install-agent.sh`、`install-ctl.sh` 与 `release-pubkey.pem`。
 - `checksums.txt`、其 base64 编码的 Ed25519 签名 `checksums.txt.sig`，以及内容相同的兼容文件 `SHA256SUMS.txt`。校验清单覆盖二进制、压缩包、安装器和公钥。
-- 十份 Linux 组件 manifest、一份镜像摘要 manifest 及汇总 `manifests.json`，使用 `conflux-release-manifest-v1` 域签名。macOS CLI 和用户网络探测工具由已签名的校验清单覆盖。
+- 十份 Linux 组件 manifest、一份镜像摘要 manifest 及汇总 `manifests.json`，使用 `conflux-release-manifest-v1` 域签名。macOS CLI 由已签名的校验清单覆盖。
 - 与 runtime 二进制来自同一源码提交的 `conflux-runtime-<version>-source.tar.gz`，包含运行时模块的 README、许可证声明及固定依赖。参见 [LICENSE](LICENSE)。
 
 如需构建发布的运行时源码，解压源码包，使用其中 `go.mod` 声明的 Go 版本，再执行 `go test ./...` 和 `go build ./cmd/conflux-runtime`。本公开仓库本身不包含应用源码树。
@@ -168,7 +159,7 @@ chmod +x ./conflux-probe-0.0.3-darwin-arm64
 | 流水线 | 触发方式与用途 |
 | --- | --- |
 | [Verify Release Repo](.github/workflows/ci.yml) | 公开仓库 `main` 分支推送及 PR；检查公钥和 Compose 文件 |
-| [Source CI](.github/workflows/source-ci.yml) | 手动指定 `source_ref`，或 `source-ci` 类型的 `repository_dispatch`；验证私有源码、前端、两个 Go 模块的竞态测试，并交叉构建 Linux 组件及用户网络探测工具 |
+| [Source CI](.github/workflows/source-ci.yml) | 手动指定 `source_ref`，或 `source-ci` 类型的 `repository_dispatch`；验证私有源码、前端、两个 Go 模块的竞态测试，并交叉构建 Linux 组件 |
 | [Release](.github/workflows/release.yml) | 手动指定版本、源码和通道，可复用工作流调用，或公开仓库 `v*` 标签推送；构建、签名并发布产物与镜像 |
 | [Release request](.github/workflows/release-request.yml) | 推送变更 `.github/release-requests/*.json`；调用可复用发布流水线 |
 

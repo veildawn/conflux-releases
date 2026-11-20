@@ -99,20 +99,8 @@ jobs:
             for bin in conflux-server conflux-agent conflux-updater conflux-ctl; do
               CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath -o "/tmp/bin-${arch}/${bin}" "./cmd/${bin}"
             done
+            (cd runtime && CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath -o "/tmp/bin-${arch}/conflux-runtime" ./cmd/conflux-runtime)
           done
-
-      - name: Cross-build user network probe
-        run: |
-          if [ -f runtime/cmd/conflux-probe/main.go ]; then
-            for os in linux darwin windows; do
-              for arch in amd64 arm64; do
-                suffix=""
-                if [ "$os" = windows ]; then suffix=".exe"; fi
-                (cd runtime && CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath \
-                  -o "$RUNNER_TEMP/conflux-probe-$os-$arch$suffix" ./cmd/conflux-probe)
-              done
-            done
-          fi
 
       - name: Scrub private checkout
         if: always()
