@@ -4,7 +4,7 @@
 
 Public downloads, deployment templates, CI, and releases for **Conflux**, a multi-tenant proxy node management platform with five managed protocols, external subscription sharing, six-client subscription compilation, conserved traffic quotas (`L = U + R + A`), DNS/ACME automation, and a bilingual console.
 
-The current stable release is [v0.0.3](https://github.com/veildawn/conflux-releases/releases/tag/v0.0.3). See [all releases](https://github.com/veildawn/conflux-releases/releases) for release history. Application source is maintained in the private `veildawn/conflux-service` repository; all GitHub Actions run in this public repository. Actions are disabled in the private repository.
+The current stable release is [v0.0.4](https://github.com/veildawn/conflux-releases/releases/tag/v0.0.4). See [all releases](https://github.com/veildawn/conflux-releases/releases) for release history. Application source is maintained in the private `veildawn/conflux-service` repository; all GitHub Actions run in this public repository. Actions are disabled in the private repository.
 
 ## Downloads
 
@@ -12,15 +12,14 @@ The current stable release is [v0.0.3](https://github.com/veildawn/conflux-relea
 | --- | --- |
 | `conflux-server`, `conflux-agent`, `conflux-runtime`, `conflux-updater`, `conflux-ctl` | Linux `amd64` / `arm64` |
 | `conflux-ctl` | macOS (`darwin`) `amd64` / `arm64` |
-| `conflux-probe` (v0.0.3) | Linux, macOS, and Windows on `amd64` / `arm64` |
-| `ghcr.io/veildawn/conflux-release:0.0.3` | Linux `amd64` / `arm64` container image |
-| `conflux-runtime-0.0.3-source.tar.gz` | Source for runtime `1.14.4-cfx3`, dependency lockfiles, build instructions, and license notice |
+| `ghcr.io/veildawn/conflux-release:0.0.4` | Linux `amd64` / `arm64` container image |
+| `conflux-runtime-0.0.4-source.tar.gz` | Source for runtime `1.14.4-cfx4`, dependency lockfiles, build instructions, and license notice |
 
 The [GHCR image](https://github.com/veildawn/conflux-releases/pkgs/container/conflux-release) is public and can be pulled without signing in. The package name is **`conflux-release`** (singular); this repository is **`conflux-releases`** (plural). Pin a version or digest for a reproducible deployment; `latest` is a mutable tag.
 
 ## Installation
 
-The examples below install **0.0.3** explicitly. Native server and Agent installers support Debian 12/13 and Ubuntu 22.04/24.04/26.04 with systemd, on `amd64` or `arm64`. They require root, local storage, `curl`, OpenSSL with Ed25519 support, `sha256sum`, and Python 3. The standalone CLI supports Linux and macOS.
+The examples below install **0.0.4** explicitly. Native server and Agent installers support Debian 12/13 and Ubuntu 22.04/24.04/26.04 with systemd, on `amd64` or `arm64`. They require root, local storage, `curl`, OpenSSL with Ed25519 support, `sha256sum`, and Python 3. The standalone CLI supports Linux and macOS.
 
 ### Download and Verify Installers
 
@@ -28,7 +27,7 @@ Run in a new working directory. Download the checksum signature and installers f
 
 ```sh
 set -eu
-RELEASE_VERSION=0.0.3
+RELEASE_VERSION=0.0.4
 RELEASE_URL="https://github.com/veildawn/conflux-releases/releases/download/v${RELEASE_VERSION}"
 for file in release-pubkey.pem checksums.txt checksums.txt.sig install-server.sh install-agent.sh install-ctl.sh; do
   curl -fsSL "$RELEASE_URL/$file" -o "$file"
@@ -60,7 +59,7 @@ The fingerprint above and [release-pubkey.pem](release-pubkey.pem) are the publi
 From the verified download directory, supply an existing PostgreSQL database and your external HTTPS URL:
 
 ```sh
-sudo bash ./install-server.sh --version 0.0.3 \
+sudo bash ./install-server.sh --version 0.0.4 \
   --public-base-url https://conflux.example.com \
   --database-url 'postgres://conflux:REPLACE_WITH_PASSWORD@127.0.0.1:5432/conflux?sslmode=disable' \
   --release-pubkey-pem "$PWD/release-pubkey.pem"
@@ -75,7 +74,7 @@ Native installation listens on `127.0.0.1:8080`. Configure an HTTPS reverse prox
 Create a 15-minute enrollment token in **Hosts → Connect VPS**. Save it to a root-readable `0600` file on the target host, then run the verified installer there:
 
 ```sh
-sudo bash ./install-agent.sh --version 0.0.3 \
+sudo bash ./install-agent.sh --version 0.0.4 \
   --server https://conflux.example.com \
   --enroll-token-file /root/conflux-enroll-token \
   --release-pubkey-pem "$PWD/release-pubkey.pem"
@@ -89,7 +88,7 @@ Keep the SQLite WAL ledger on local storage. Installers change firewall rules on
 From the verified download directory:
 
 ```sh
-sh ./install-ctl.sh --version 0.0.3 --install-dir "$HOME/.local/bin"
+sh ./install-ctl.sh --version 0.0.4 --install-dir "$HOME/.local/bin"
 export PATH="$HOME/.local/bin:$PATH"
 conflux-ctl version
 
@@ -118,7 +117,7 @@ Create a `0600` `.env` file alongside it, replacing both secret placeholders wit
 CONFLUX_PUBLIC_BASE_URL=https://conflux.example.com
 CONFLUX_MASTER_KEY_HEX=REPLACE_WITH_PERSISTENT_64_HEX_CHARACTERS
 POSTGRES_PASSWORD=REPLACE_WITH_A_RANDOM_PASSWORD
-CONFLUX_SERVER_IMAGE=ghcr.io/veildawn/conflux-release:0.0.3
+CONFLUX_SERVER_IMAGE=ghcr.io/veildawn/conflux-release:0.0.4
 ```
 
 ```sh
@@ -135,11 +134,11 @@ Native and Compose deployments support in-app updates through the sidebar versio
 
 ## User network probes
 
-The development version following v0.0.3 checks your current network automatically while the admin console's Nodes page is visible. Upgrade the control plane, node agent and runtime together. Open a remote node to see its endpoint and separate TCP or UDP results. **Check again** starts both the browser and server checks.
+Conflux v0.0.4 checks your current network automatically while the admin console's Nodes page is visible. Upgrade the control plane, node agent and runtime together. Open a remote node to see its endpoint and separate TCP or UDP results. **Check again** starts both the browser and server checks.
 
 The browser uses WebRTC on the node's configured service port. VLESS + REALITY and Trojan use TCP, Hysteria2 and TUIC use UDP, and Shadowsocks 2022 uses the transports enabled on the instance. With port hopping, the result covers the one entrance shown. A transport is reachable when the node receives its authenticated response. After ten seconds without a receipt, that transport is unconfirmed. Results stay fresh for three minutes. Scheduled server health checks continue when the console is closed.
 
-For the published v0.0.3 release, follow the [v0.0.3 device probe instructions](https://github.com/veildawn/conflux-releases/blob/v0.0.3/README.md#user-network-probes).
+For the published v0.0.3 release, follow the [v0.0.3 device probe instructions](https://github.com/veildawn/conflux-releases/blob/4d899cc537b925014a043e8e6e54fcbc9729ef86/README.md#user-network-probes).
 
 ## Release Contents and Runtime Source
 
