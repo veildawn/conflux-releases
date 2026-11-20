@@ -4,7 +4,7 @@
 
 Public downloads, deployment templates, CI, and releases for **Conflux**, a multi-tenant proxy node management platform with five managed protocols, external subscription sharing, six-client subscription compilation, conserved traffic quotas (`L = U + R + A`), DNS/ACME automation, and a bilingual console.
 
-The first stable release is [v0.0.1](https://github.com/veildawn/conflux-releases/releases/tag/v0.0.1). See [all releases](https://github.com/veildawn/conflux-releases/releases) for subsequent versions. Application source is maintained in the private `veildawn/conflux-service` repository; all GitHub Actions run in this public repository. Actions are disabled in the private repository.
+The current stable release is [v0.0.2](https://github.com/veildawn/conflux-releases/releases/tag/v0.0.2). See [all releases](https://github.com/veildawn/conflux-releases/releases) for release history. Application source is maintained in the private `veildawn/conflux-service` repository; all GitHub Actions run in this public repository. Actions are disabled in the private repository.
 
 ## Downloads
 
@@ -12,14 +12,14 @@ The first stable release is [v0.0.1](https://github.com/veildawn/conflux-release
 | --- | --- |
 | `conflux-server`, `conflux-agent`, `conflux-runtime`, `conflux-updater`, `conflux-ctl` | Linux `amd64` / `arm64` |
 | `conflux-ctl` | macOS (`darwin`) `amd64` / `arm64` |
-| `ghcr.io/veildawn/conflux-release:0.0.1` | Linux `amd64` / `arm64` container image |
-| `conflux-runtime-0.0.1-source.tar.gz` | Corresponding runtime source, dependency lockfiles, build instructions, and license notice |
+| `ghcr.io/veildawn/conflux-release:0.0.2` | Linux `amd64` / `arm64` container image |
+| `conflux-runtime-0.0.2-source.tar.gz` | Source for runtime `1.14.4-cfx2`, dependency lockfiles, build instructions, and license notice |
 
 The [GHCR image](https://github.com/veildawn/conflux-releases/pkgs/container/conflux-release) is public and can be pulled without signing in. The package name is **`conflux-release`** (singular); this repository is **`conflux-releases`** (plural). Pin a version or digest for a reproducible deployment; `latest` is a mutable tag.
 
 ## Installation
 
-The examples below install **0.0.1** explicitly. Native server and Agent installers support Debian 12/13 and Ubuntu 22.04/24.04/26.04 with systemd, on `amd64` or `arm64`. They require root, local storage, `curl`, OpenSSL with Ed25519 support, `sha256sum`, and Python 3. The standalone CLI supports Linux and macOS.
+The examples below install **0.0.2** explicitly. Native server and Agent installers support Debian 12/13 and Ubuntu 22.04/24.04/26.04 with systemd, on `amd64` or `arm64`. They require root, local storage, `curl`, OpenSSL with Ed25519 support, `sha256sum`, and Python 3. The standalone CLI supports Linux and macOS.
 
 ### Download and Verify Installers
 
@@ -27,7 +27,7 @@ Run in a new working directory. Download the checksum signature and installers f
 
 ```sh
 set -eu
-RELEASE_VERSION=0.0.1
+RELEASE_VERSION=0.0.2
 RELEASE_URL="https://github.com/veildawn/conflux-releases/releases/download/v${RELEASE_VERSION}"
 for file in release-pubkey.pem checksums.txt checksums.txt.sig install-server.sh install-agent.sh install-ctl.sh; do
   curl -fsSL "$RELEASE_URL/$file" -o "$file"
@@ -59,7 +59,7 @@ The fingerprint above and [release-pubkey.pem](release-pubkey.pem) are the publi
 From the verified download directory, supply an existing PostgreSQL database and your external HTTPS URL:
 
 ```sh
-sudo bash ./install-server.sh --version 0.0.1 \
+sudo bash ./install-server.sh --version 0.0.2 \
   --public-base-url https://conflux.example.com \
   --database-url 'postgres://conflux:REPLACE_WITH_PASSWORD@127.0.0.1:5432/conflux?sslmode=disable' \
   --release-pubkey-pem "$PWD/release-pubkey.pem"
@@ -74,7 +74,7 @@ Native installation listens on `127.0.0.1:8080`. Configure an HTTPS reverse prox
 Create a 15-minute enrollment token in **Hosts → Connect VPS**. Save it to a root-readable `0600` file on the target host, then run the verified installer there:
 
 ```sh
-sudo bash ./install-agent.sh --version 0.0.1 \
+sudo bash ./install-agent.sh --version 0.0.2 \
   --server https://conflux.example.com \
   --enroll-token-file /root/conflux-enroll-token \
   --release-pubkey-pem "$PWD/release-pubkey.pem"
@@ -88,7 +88,7 @@ Keep the SQLite WAL ledger on local storage. Installers change firewall rules on
 From the verified download directory:
 
 ```sh
-sh ./install-ctl.sh --version 0.0.1 --install-dir "$HOME/.local/bin"
+sh ./install-ctl.sh --version 0.0.2 --install-dir "$HOME/.local/bin"
 export PATH="$HOME/.local/bin:$PATH"
 conflux-ctl version
 
@@ -100,7 +100,7 @@ conflux-ctl ops tasks
 conflux-ctl ops alerts
 ```
 
-The native server/Agent installers verify binary manifests with Ed25519 and SHA-256. The standalone CLI installer checks available SHA-256 metadata; it does not verify the checksum signature itself. For authenticated manual binary verification, download the CLI asset from the same release and compare its SHA-256 against the signed `checksums.txt` verified above.
+The native server and Agent installers verify the Ed25519 signatures and SHA-256 digests in the binary manifests. When downloading from GitHub Releases, the CLI installer requires OpenSSL with Ed25519 support and verifies the signature on `checksums.txt` before checking the artifact's SHA-256 digest. For artifacts served by a control plane, it checks the SHA-256 digest against the `X-Artifact-SHA256` response header.
 
 ### Docker Compose
 
@@ -117,7 +117,7 @@ Create a `0600` `.env` file alongside it, replacing both secret placeholders wit
 CONFLUX_PUBLIC_BASE_URL=https://conflux.example.com
 CONFLUX_MASTER_KEY_HEX=REPLACE_WITH_PERSISTENT_64_HEX_CHARACTERS
 POSTGRES_PASSWORD=REPLACE_WITH_A_RANDOM_PASSWORD
-CONFLUX_SERVER_IMAGE=ghcr.io/veildawn/conflux-release:0.0.1
+CONFLUX_SERVER_IMAGE=ghcr.io/veildawn/conflux-release:0.0.2
 ```
 
 ```sh
