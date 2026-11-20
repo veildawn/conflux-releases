@@ -279,6 +279,18 @@ jobs:
               -o "${OUT_DIR}/conflux-ctl-${REL_VER}-darwin-${arch}" ./cmd/conflux-ctl) >/dev/null
           done
 
+          if [ -f _src/runtime/cmd/conflux-probe/main.go ]; then
+            for os in linux darwin windows; do
+              for arch in amd64 arm64; do
+                suffix=""
+                if [ "$os" = windows ]; then suffix=".exe"; fi
+                (cd _src/runtime && CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath \
+                  -ldflags="-s -w -X main.version=${REL_VER} -X main.commit=${SRC_SHA}" \
+                  -o "${OUT_DIR}/conflux-probe-${REL_VER}-${os}-${arch}${suffix}" ./cmd/conflux-probe) >/dev/null
+              done
+            done
+          fi
+
           echo "[release] Stage 4: Package GPL corresponding runtime source & installers"
           tar -czf "${OUT_DIR}/conflux-runtime-${REL_VER}-source.tar.gz" --exclude='.git' -C _src/runtime .
           cp _src/deploy/install/install-server.sh "${OUT_DIR}/install-server.sh"
@@ -392,7 +404,12 @@ jobs:
             exit 1
           fi
           REL_VER="${REL_TAG#v}"
-          (cd dist && sha256sum -- *.tar.gz conflux-*-linux-* conflux-ctl-*-darwin-* *.sh *.pem > checksums.txt)
+          (
+            cd dist
+            shopt -s nullglob
+            sha256sum -- *.tar.gz conflux-*-linux-* conflux-ctl-*-darwin-* \
+              conflux-probe-*-darwin-* conflux-probe-*-windows-*.exe *.sh *.pem > checksums.txt
+          )
           cp dist/checksums.txt dist/SHA256SUMS.txt
           (cd _signer_src && go run ./scripts/release-sign "${GITHUB_WORKSPACE}/dist/checksums.txt")
           (cd _signer_src && go run ./scripts/release-sign \
