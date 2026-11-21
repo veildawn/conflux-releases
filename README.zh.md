@@ -2,9 +2,11 @@
 
 [English](README.md)
 
-**Conflux** 的公开下载、部署模板、CI 与版本发布仓库。Conflux 是多租户代理节点管理平台，支持五种受管协议、外部订阅共享、六类客户端订阅编译、守恒流量额度（`L = U + R + A`）、DNS/ACME 自动化与双语控制台。
+**Conflux** 的公开下载、部署模板、CI 与版本发布仓库。Conflux 是多租户代理节点管理平台，支持四种受管协议、外部订阅共享、六类客户端订阅编译、守恒流量额度（`L = U + R + A`）、DNS/ACME 自动化与双语控制台。
 
-当前稳定版本为 [v0.0.7](https://github.com/veildawn/conflux-releases/releases/tag/v0.0.7)，历史版本见[发布列表](https://github.com/veildawn/conflux-releases/releases)。应用源码在私有仓库 `veildawn/conflux-service` 中维护；**所有 GitHub Actions 均在本公开仓库运行**，私有仓库的 Actions 已关闭。
+当前稳定版本为 [v0.0.10](https://github.com/veildawn/conflux-releases/releases/tag/v0.0.10)，历史版本见[发布列表](https://github.com/veildawn/conflux-releases/releases)。应用源码在私有仓库 `veildawn/conflux-service` 中维护；**所有 GitHub Actions 均在本公开仓库运行**，私有仓库的 Actions 已关闭。
+
+客户端直接连接所选节点，由节点向目标网站转发流量。控制服务器负责订阅、配置与额度分发，普通代理数据不经过控制服务器；显式配置节点链路时才会增加指定的中转节点。四种自建协议为 VLESS + REALITY、Hysteria2、Trojan 和 Shadowsocks 2022；外部订阅仍支持 TUIC。
 
 ## 下载
 
@@ -12,14 +14,14 @@
 | --- | --- |
 | `conflux-server`、`conflux-agent`、`conflux-runtime`、`conflux-updater`、`conflux-ctl` | Linux `amd64` / `arm64` |
 | `conflux-ctl` | macOS（`darwin`）`amd64` / `arm64` |
-| `ghcr.io/veildawn/conflux-release:0.0.7` | Linux `amd64` / `arm64` 容器镜像 |
-| `conflux-runtime-0.0.7-source.tar.gz` | 运行时 `1.14.4-cfx4` 的对应源码、依赖锁定文件、构建说明和许可证声明 |
+| `ghcr.io/veildawn/conflux-release:0.0.10` | Linux `amd64` / `arm64` 容器镜像 |
+| `conflux-runtime-0.0.10-source.tar.gz` | 嵌入 `Xray-core 26.11.9` 的 MPL-2.0 运行时对应源码、依赖锁定文件、构建说明和许可证声明 |
 
 [GHCR 镜像](https://github.com/veildawn/conflux-releases/pkgs/container/conflux-release)已公开，无需登录即可拉取。镜像包名为 **`conflux-release`**（单数），仓库名为 **`conflux-releases`**（复数）。部署时固定版本或镜像摘要，便于复现；`latest` 是可变标签。
 
 ## 安装
 
-以下示例明确安装 **0.0.7**。原生控制端与 Agent 安装器支持使用 systemd 的 Debian 12/13、Ubuntu 22.04/24.04/26.04，以及 `amd64` / `arm64` 架构；需要 root、本地存储、`curl`、支持 Ed25519 的 OpenSSL、`sha256sum` 和 Python 3。独立 CLI 支持 Linux 和 macOS。
+以下示例明确安装 **0.0.10**。原生控制端与 Agent 安装器支持使用 systemd 的 Debian 12/13、Ubuntu 22.04/24.04/26.04，以及 `amd64` / `arm64` 架构；需要 root、本地存储、`curl`、支持 Ed25519 的 OpenSSL、`sha256sum` 和 Python 3。独立 CLI 支持 Linux 和 macOS。
 
 ### 下载并校验安装脚本
 
@@ -27,7 +29,7 @@
 
 ```sh
 set -eu
-RELEASE_VERSION=0.0.7
+RELEASE_VERSION=0.0.10
 RELEASE_URL="https://github.com/veildawn/conflux-releases/releases/download/v${RELEASE_VERSION}"
 for file in release-pubkey.pem checksums.txt checksums.txt.sig install-server.sh install-agent.sh install-ctl.sh; do
   curl -fsSL "$RELEASE_URL/$file" -o "$file"
@@ -59,7 +61,7 @@ PY
 在已校验的下载目录中执行，填写已有 PostgreSQL 数据库连接和对外 HTTPS 地址：
 
 ```sh
-sudo bash ./install-server.sh --version 0.0.7 \
+sudo bash ./install-server.sh --version 0.0.10 \
   --public-base-url https://conflux.example.com \
   --database-url 'postgres://conflux:REPLACE_WITH_PASSWORD@127.0.0.1:5432/conflux?sslmode=disable' \
   --release-pubkey-pem "$PWD/release-pubkey.pem"
@@ -74,7 +76,7 @@ sudo journalctl -u conflux-server -n 50 --no-pager
 在管理后台「主机管理 → 接入 VPS」生成 15 分钟有效的注册令牌。在目标主机上将令牌存入 root 可读、权限为 `0600` 的文件，再运行已校验的安装器：
 
 ```sh
-sudo bash ./install-agent.sh --version 0.0.7 \
+sudo bash ./install-agent.sh --version 0.0.10 \
   --server https://conflux.example.com \
   --enroll-token-file /root/conflux-enroll-token \
   --release-pubkey-pem "$PWD/release-pubkey.pem"
@@ -88,7 +90,7 @@ SQLite WAL 账本必须保存在本地存储。只有显式传入 `--configure-f
 在已校验的下载目录中执行：
 
 ```sh
-sh ./install-ctl.sh --version 0.0.7 --install-dir "$HOME/.local/bin"
+sh ./install-ctl.sh --version 0.0.10 --install-dir "$HOME/.local/bin"
 export PATH="$HOME/.local/bin:$PATH"
 conflux-ctl version
 
@@ -117,7 +119,7 @@ curl -fsSL https://raw.githubusercontent.com/veildawn/conflux-releases/main/depl
 CONFLUX_PUBLIC_BASE_URL=https://conflux.example.com
 CONFLUX_MASTER_KEY_HEX=REPLACE_WITH_PERSISTENT_64_HEX_CHARACTERS
 POSTGRES_PASSWORD=REPLACE_WITH_A_RANDOM_PASSWORD
-CONFLUX_SERVER_IMAGE=ghcr.io/veildawn/conflux-release:0.0.7
+CONFLUX_SERVER_IMAGE=ghcr.io/veildawn/conflux-release:0.0.10
 ```
 
 ```sh
@@ -140,7 +142,7 @@ docker compose logs --tail=50 conflux-server
 
 ## 在已有网站的主机上创建协议
 
-v0.0.7 的新建协议表单默认使用该主机最近绑定的域名，包括证书仍在申请中的手动解析域名，也允许自行修改连接地址。TLS 协议仍需该地址对应的有效证书；REALITY 使用独立验证的握手目标与 SNI。
+自 v0.0.7 起，新建协议表单默认使用该主机最近绑定的域名，包括证书仍在申请中的手动解析域名，也允许自行修改连接地址。TLS 协议仍需该地址对应的有效证书；REALITY 使用独立验证的握手目标与 SNI。
 
 升级控制端及节点组件后，可在协议表单中检查部署环境，查看 DNS、TCP/UDP 监听状态及 REALITY TLS 兼容性。创建时会再次检查环境；申请的端口被占用时，系统会选择空闲候选端口并保留现有网站服务。控制台会展示检测到的冲突和调整后的连接地址。主机本地端口空闲仍需防火墙或 NAT 放行，创建后的探测会检查实际可达性。旧版 Agent 需要升级才能提供这些检查。
 
@@ -148,7 +150,7 @@ v0.0.7 的新建协议表单默认使用该主机最近绑定的域名，包括�
 
 v0.0.4 及后续版本会在管理控制台的节点页可见时自动检测当前网络。请一并升级控制端、节点 Agent 和 Runtime。在远程节点详情中可以看到实际检测的入口和各传输协议的结果。点击 **重新检测** 可同时刷新浏览器和服务端的检测结果。
 
-浏览器通过 WebRTC 检测节点的业务端口。VLESS + REALITY 和 Trojan 检测 TCP，Hysteria2 和 TUIC 检测 UDP，Shadowsocks 2022 按实例启用的传输协议检测。启用端口跳跃时，结果仅覆盖页面显示的一个入口。节点收到经认证的回应后，对应协议显示「可达」。10 秒内未收到回执则显示「超时，未确认」。结果 3 分钟内有效。关闭页面后，服务端仍会定时检查节点健康。
+浏览器通过 WebRTC 检测节点的业务端口。VLESS + REALITY 和 Trojan 检测 TCP，Hysteria2 检测 UDP，Shadowsocks 2022 按实例启用的传输协议检测。启用端口跳跃时，结果仅覆盖页面显示的一个入口。节点收到经认证的回应后，对应协议显示「可达」。10 秒内未收到回执则显示「超时，未确认」。结果 3 分钟内有效。关闭页面后，服务端仍会定时检查节点健康。
 
 已发布的 v0.0.3 使用随版本提供的工具，操作见 [v0.0.3 用户网络探测说明](https://github.com/veildawn/conflux-releases/blob/4d899cc537b925014a043e8e6e54fcbc9729ef86/README.zh.md#用户网络探测)。
 
