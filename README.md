@@ -2,11 +2,11 @@
 
 [简体中文](README.zh.md)
 
-Public downloads, deployment templates, CI, and releases for **Conflux**, a multi-tenant proxy node management platform with four managed protocols, external subscription sharing, six-client subscription compilation, conserved traffic quotas (`L = U + R + A`), DNS/ACME automation, and a bilingual console.
+Public downloads, deployment templates, CI, and releases for **Conflux**, a multi-tenant proxy node management platform with four built-in protocols and optional Snell v6, external subscription sharing, six-client subscription compilation, conserved traffic quotas (`L = U + R + A`), DNS/ACME automation, and a bilingual console.
 
-The current stable release is [v0.0.16](https://github.com/veildawn/conflux-releases/releases/tag/v0.0.16). See [all releases](https://github.com/veildawn/conflux-releases/releases) for release history. Application source is maintained in the private `veildawn/conflux-service` repository; all GitHub Actions run in this public repository. Actions are disabled in the private repository.
+The current stable release is [v0.0.17](https://github.com/veildawn/conflux-releases/releases/tag/v0.0.17). See [all releases](https://github.com/veildawn/conflux-releases/releases) for release history. Application source is maintained in the private `veildawn/conflux-service` repository; all GitHub Actions run in this public repository. Actions are disabled in the private repository.
 
-Clients connect to the selected node, which forwards traffic to the destination. The control server distributes subscriptions, configuration, and quota grants; ordinary proxy payload does not pass through it. Explicit node chaining adds the configured relay hops. The managed protocols are VLESS + REALITY, Hysteria2, Trojan, and Shadowsocks 2022; TUIC remains supported for external subscriptions.
+Clients connect to the selected node, which forwards traffic to the destination. The control server distributes subscriptions, configuration, and quota grants; ordinary proxy payload does not pass through it. Explicit node chaining adds the configured relay hops. The built-in protocols are VLESS + REALITY, Hysteria2, Trojan, and Shadowsocks 2022. Linux hosts can also enable direct Snell v6. External subscriptions also support TUIC.
 
 ## Downloads
 
@@ -14,14 +14,14 @@ Clients connect to the selected node, which forwards traffic to the destination.
 | --- | --- |
 | `conflux-server`, `conflux-agent`, `conflux-runtime`, `conflux-updater`, `conflux-ctl` | Linux `amd64` / `arm64` |
 | `conflux-ctl` | macOS (`darwin`) `amd64` / `arm64` |
-| `ghcr.io/veildawn/conflux-release:0.0.16` | Linux `amd64` / `arm64` container image |
-| `conflux-runtime-0.0.16-source.tar.gz` | Source for the MPL-2.0 runtime embedding `Xray-core 26.11.9`, dependency lockfiles, build instructions, and license notice |
+| `ghcr.io/veildawn/conflux-release:0.0.17` | Linux `amd64` / `arm64` container image |
+| `conflux-runtime-0.0.17-source.tar.gz` | Source for the MPL-2.0 runtime embedding `Xray-core 26.11.9`, dependency lockfiles, build instructions, and license notice |
 
 The [GHCR image](https://github.com/veildawn/conflux-releases/pkgs/container/conflux-release) is public and can be pulled without signing in. The package name is **`conflux-release`** (singular); this repository is **`conflux-releases`** (plural). Pin a version or digest for a reproducible deployment; `latest` is a mutable tag.
 
 ## Installation
 
-The examples below install **0.0.16** explicitly. Native server and Agent installers support Debian 12/13 and Ubuntu 22.04/24.04/26.04 with systemd, on `amd64` or `arm64`. They require root, local storage, `curl`, OpenSSL with Ed25519 support, `sha256sum`, and Python 3. The standalone CLI supports Linux and macOS.
+The examples below install **0.0.17** explicitly. Native server and Agent installers support Debian 12/13 and Ubuntu 22.04/24.04/26.04 with systemd, on `amd64` or `arm64`. They require root, local storage, `curl`, OpenSSL with Ed25519 support, `sha256sum`, and Python 3. The standalone CLI supports Linux and macOS.
 
 ### Download and Verify Installers
 
@@ -29,7 +29,7 @@ Run in a new working directory. Download the checksum signature and installers f
 
 ```sh
 set -eu
-RELEASE_VERSION=0.0.16
+RELEASE_VERSION=0.0.17
 RELEASE_URL="https://github.com/veildawn/conflux-releases/releases/download/v${RELEASE_VERSION}"
 for file in release-pubkey.pem checksums.txt checksums.txt.sig install-server.sh install-agent.sh install-ctl.sh; do
   curl -fsSL "$RELEASE_URL/$file" -o "$file"
@@ -61,7 +61,7 @@ The fingerprint above and [release-pubkey.pem](release-pubkey.pem) are the publi
 From the verified download directory, supply an existing PostgreSQL database and your external HTTPS URL:
 
 ```sh
-sudo bash ./install-server.sh --version 0.0.16 \
+sudo bash ./install-server.sh --version 0.0.17 \
   --public-base-url https://conflux.example.com \
   --database-url 'postgres://conflux:REPLACE_WITH_PASSWORD@127.0.0.1:5432/conflux?sslmode=disable' \
   --release-pubkey-pem "$PWD/release-pubkey.pem"
@@ -76,7 +76,7 @@ Native installation listens on `127.0.0.1:8080`. Configure an HTTPS reverse prox
 Create a 15-minute enrollment token in **Hosts → Connect VPS**. Save it to a root-readable `0600` file on the target host, then run the verified installer there:
 
 ```sh
-sudo bash ./install-agent.sh --version 0.0.16 \
+sudo bash ./install-agent.sh --version 0.0.17 \
   --server https://conflux.example.com \
   --enroll-token-file /root/conflux-enroll-token \
   --release-pubkey-pem "$PWD/release-pubkey.pem"
@@ -85,9 +85,9 @@ sudo systemctl status conflux-agent conflux-runtime
 
 Keep the SQLite WAL ledger on local storage. Installers change firewall rules only when `--configure-firewall` is requested; open the configured proxy ports in host and cloud firewalls as needed.
 
-### Snell v6 support in the upcoming release
+### Snell v6
 
-On Linux amd64 and arm64, the agent installer accepts `--with-snell-v6`. The signed Conflux runtime verifies the archive and executable digests for upstream sing-box 1.14.4. The component runs as the runtime service account. For an existing host, upgrade to a release containing this feature, then install the component and restart the service.
+On Linux amd64 and arm64, the agent installer accepts `--with-snell-v6`. The signed Conflux runtime verifies the archive and executable digests for upstream sing-box 1.14.4. The component runs as the runtime service account. On existing hosts, upgrade the Agent and runtime to v0.0.17 or later, then install the component and restart the runtime.
 
 ```sh
 sudo /usr/local/bin/conflux-runtime snell-component --install
@@ -96,14 +96,14 @@ sudo systemctl restart conflux-runtime
 
 In **Nodes**, create a Snell v6 instance on a host reporting the component. Allow its entire TCP port range in the host firewall, cloud firewall and any port mapping. The first port serves protocol probes. Each active member credential gets its own port and PSK, including both credentials during a planned rotation. Subscriptions publish a member port after an authenticated host check. The service forwards TCP and UDP over the TCP listener and uses the existing quota ledger and outbound policy.
 
-Managed nodes support direct connections in `default` and `unshaped` modes. Verified export formats are Surge, Mihomo, sing-box and v2rayN using its sing-box custom outbound. External sources with a userkey export to sing-box and v2rayN. Only external sources can use `unsafe-raw`, which sends application data in plaintext.
+Managed nodes support direct connections in `default` and `unshaped` modes. Subscriptions can export Surge, Mihomo, sing-box and v2rayN configurations. v2rayN uses a custom sing-box outbound. Traffic forwarding was tested with Mihomo and sing-box. Surge Mac passed configuration validation. Native Surge traffic and Shadowrocket device compatibility are pending verification. External sources with a userkey export to sing-box and v2rayN. Only external sources can use `unsafe-raw`, which sends application data in plaintext.
 
 ### Remote CLI
 
 From the verified download directory:
 
 ```sh
-sh ./install-ctl.sh --version 0.0.16 --install-dir "$HOME/.local/bin"
+sh ./install-ctl.sh --version 0.0.17 --install-dir "$HOME/.local/bin"
 export PATH="$HOME/.local/bin:$PATH"
 conflux-ctl version
 
@@ -133,7 +133,7 @@ Create a `0600` `.env` file alongside it, replacing both secret placeholders wit
 CONFLUX_PUBLIC_BASE_URL=https://conflux.example.com
 CONFLUX_MASTER_KEY_HEX=REPLACE_WITH_PERSISTENT_64_HEX_CHARACTERS
 POSTGRES_PASSWORD=REPLACE_WITH_A_RANDOM_PASSWORD
-CONFLUX_SERVER_IMAGE=ghcr.io/veildawn/conflux-release:0.0.16
+CONFLUX_SERVER_IMAGE=ghcr.io/veildawn/conflux-release:0.0.17
 ```
 
 ```sh
@@ -158,7 +158,7 @@ Leave validation on **Automatic (recommended)**. The server uses DNS-01 only for
 
 Since v0.0.7, the new-protocol form defaults to the most recently attached host domain, including manually configured domains whose certificate is still being issued. You can override the connection address. TLS protocols still require a valid certificate for that address; REALITY uses a separately validated handshake target and SNI.
 
-After upgrading the control plane and node components, use the deployment-environment check in the protocol form to inspect DNS, TCP/UDP listeners, and REALITY TLS compatibility. Creation checks the environment again and selects an available candidate port when the requested port is occupied, preserving existing web services. The console shows the detected conflict and adjusted endpoint. A free local port still needs to be reachable through your firewall or NAT; post-creation probes report reachability. Older Agents must be upgraded to provide these checks.
+After upgrading the control plane and node components, use the deployment-environment check in the protocol form to inspect DNS, TCP/UDP listeners, and REALITY TLS compatibility. Creation checks the environment again. An explicit port that overlaps another managed instance is rejected. Automatic port selection can choose a free candidate and preserve existing web services. The console shows the detected conflict and adjusted endpoint. A free local port still needs to be reachable through your firewall or NAT; post-creation probes report reachability. Older Agents must be upgraded to provide these checks.
 
 ## User network probes
 
@@ -175,6 +175,7 @@ Each release includes:
 - Standalone Linux binaries for all five components and macOS CLI binaries.
 - `conflux-server_<version>_linux_<arch>.tar.gz` containing `conflux-server` and `conflux-ctl` for self-update.
 - `install-server.sh`, `install-agent.sh`, `install-ctl.sh`, and `release-pubkey.pem`.
+- `conflux-snell-component-<version>-linux-<arch>.json` with the upstream version and SHA-256 pins for the optional Snell component on each Linux architecture. The signed checksums cover both files.
 - Signed `checksums.txt`, its base64 Ed25519 signature `checksums.txt.sig`, and the identical `SHA256SUMS.txt` compatibility alias. The checksum list covers binaries, archives, installers, and the public key.
 - Ten Linux component manifests, a container-image digest manifest, and combined `manifests.json`, signed with the `conflux-release-manifest-v1` domain. macOS CLI assets are covered by signed checksums.
 - `conflux-runtime-<version>-source.tar.gz` from the same source commit as the runtime binary. It contains the runtime module's README, license notice, and pinned dependencies. See [LICENSE](LICENSE).

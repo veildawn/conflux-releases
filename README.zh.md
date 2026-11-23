@@ -2,11 +2,11 @@
 
 [English](README.md)
 
-**Conflux** 的公开下载、部署模板、CI 与版本发布仓库。Conflux 是多租户代理节点管理平台，支持四种受管协议、外部订阅共享、六类客户端订阅编译、守恒流量额度（`L = U + R + A`）、DNS/ACME 自动化与双语控制台。
+**Conflux** 的公开下载、部署模板、CI 与版本发布仓库。Conflux 是多租户代理节点管理平台，支持四种内置协议、可选的 Snell v6、外部订阅共享、六类客户端订阅编译、守恒流量额度（`L = U + R + A`）、DNS/ACME 自动化与双语控制台。
 
-当前稳定版本为 [v0.0.16](https://github.com/veildawn/conflux-releases/releases/tag/v0.0.16)，历史版本见[发布列表](https://github.com/veildawn/conflux-releases/releases)。应用源码在私有仓库 `veildawn/conflux-service` 中维护；**所有 GitHub Actions 均在本公开仓库运行**，私有仓库的 Actions 已关闭。
+当前稳定版本为 [v0.0.17](https://github.com/veildawn/conflux-releases/releases/tag/v0.0.17)，历史版本见[发布列表](https://github.com/veildawn/conflux-releases/releases)。应用源码在私有仓库 `veildawn/conflux-service` 中维护；**所有 GitHub Actions 均在本公开仓库运行**，私有仓库的 Actions 已关闭。
 
-客户端直接连接所选节点，由节点向目标网站转发流量。控制服务器负责订阅、配置与额度分发，普通代理数据不经过控制服务器；显式配置节点链路时才会增加指定的中转节点。四种自建协议为 VLESS + REALITY、Hysteria2、Trojan 和 Shadowsocks 2022；外部订阅仍支持 TUIC。
+客户端直接连接所选节点，由节点向目标网站转发流量。控制服务器负责订阅、配置与额度分发，普通代理数据不经过控制服务器；显式配置节点链路时才会增加指定的中转节点。四种内置协议为 VLESS + REALITY、Hysteria2、Trojan 和 Shadowsocks 2022。Linux 主机还可启用直连 Snell v6，外部订阅也支持 TUIC。
 
 ## 下载
 
@@ -14,14 +14,14 @@
 | --- | --- |
 | `conflux-server`、`conflux-agent`、`conflux-runtime`、`conflux-updater`、`conflux-ctl` | Linux `amd64` / `arm64` |
 | `conflux-ctl` | macOS（`darwin`）`amd64` / `arm64` |
-| `ghcr.io/veildawn/conflux-release:0.0.16` | Linux `amd64` / `arm64` 容器镜像 |
-| `conflux-runtime-0.0.16-source.tar.gz` | 嵌入 `Xray-core 26.11.9` 的 MPL-2.0 运行时对应源码、依赖锁定文件、构建说明和许可证声明 |
+| `ghcr.io/veildawn/conflux-release:0.0.17` | Linux `amd64` / `arm64` 容器镜像 |
+| `conflux-runtime-0.0.17-source.tar.gz` | 嵌入 `Xray-core 26.11.9` 的 MPL-2.0 运行时对应源码、依赖锁定文件、构建说明和许可证声明 |
 
 [GHCR 镜像](https://github.com/veildawn/conflux-releases/pkgs/container/conflux-release)已公开，无需登录即可拉取。镜像包名为 **`conflux-release`**（单数），仓库名为 **`conflux-releases`**（复数）。部署时固定版本或镜像摘要，便于复现；`latest` 是可变标签。
 
 ## 安装
 
-以下示例明确安装 **0.0.16**。原生控制端与 Agent 安装器支持使用 systemd 的 Debian 12/13、Ubuntu 22.04/24.04/26.04，以及 `amd64` / `arm64` 架构；需要 root、本地存储、`curl`、支持 Ed25519 的 OpenSSL、`sha256sum` 和 Python 3。独立 CLI 支持 Linux 和 macOS。
+以下示例明确安装 **0.0.17**。原生控制端与 Agent 安装器支持使用 systemd 的 Debian 12/13、Ubuntu 22.04/24.04/26.04，以及 `amd64` / `arm64` 架构；需要 root、本地存储、`curl`、支持 Ed25519 的 OpenSSL、`sha256sum` 和 Python 3。独立 CLI 支持 Linux 和 macOS。
 
 ### 下载并校验安装脚本
 
@@ -29,7 +29,7 @@
 
 ```sh
 set -eu
-RELEASE_VERSION=0.0.16
+RELEASE_VERSION=0.0.17
 RELEASE_URL="https://github.com/veildawn/conflux-releases/releases/download/v${RELEASE_VERSION}"
 for file in release-pubkey.pem checksums.txt checksums.txt.sig install-server.sh install-agent.sh install-ctl.sh; do
   curl -fsSL "$RELEASE_URL/$file" -o "$file"
@@ -61,7 +61,7 @@ PY
 在已校验的下载目录中执行，填写已有 PostgreSQL 数据库连接和对外 HTTPS 地址：
 
 ```sh
-sudo bash ./install-server.sh --version 0.0.16 \
+sudo bash ./install-server.sh --version 0.0.17 \
   --public-base-url https://conflux.example.com \
   --database-url 'postgres://conflux:REPLACE_WITH_PASSWORD@127.0.0.1:5432/conflux?sslmode=disable' \
   --release-pubkey-pem "$PWD/release-pubkey.pem"
@@ -76,7 +76,7 @@ sudo journalctl -u conflux-server -n 50 --no-pager
 在管理后台「主机管理 → 接入 VPS」生成 15 分钟有效的注册令牌。在目标主机上将令牌存入 root 可读、权限为 `0600` 的文件，再运行已校验的安装器：
 
 ```sh
-sudo bash ./install-agent.sh --version 0.0.16 \
+sudo bash ./install-agent.sh --version 0.0.17 \
   --server https://conflux.example.com \
   --enroll-token-file /root/conflux-enroll-token \
   --release-pubkey-pem "$PWD/release-pubkey.pem"
@@ -85,9 +85,9 @@ sudo systemctl status conflux-agent conflux-runtime
 
 SQLite WAL 账本必须保存在本地存储。只有显式传入 `--configure-firewall` 时安装器才会修改防火墙规则；请按实际协议端口配置主机防火墙和云安全组。
 
-### 下一版本的 Snell v6 支持
+### Snell v6
 
-Linux amd64 和 arm64 节点可在 Agent 安装器中加入 `--with-snell-v6`。已签名的 Conflux Runtime 会校验上游 sing-box 1.14.4 的压缩包和可执行文件摘要。组件以 Runtime 服务用户身份运行。现有主机升级到包含此功能的版本后，可以安装组件并重启服务。
+Linux amd64 和 arm64 节点可在 Agent 安装器中加入 `--with-snell-v6`。已签名的 Conflux Runtime 会校验上游 sing-box 1.14.4 的压缩包和可执行文件摘要。组件以 Runtime 服务用户身份运行。现有主机需先将 Agent 和 Runtime 升级至 v0.0.17 或更高版本，再安装组件并重启 Runtime。
 
 ```sh
 sudo /usr/local/bin/conflux-runtime snell-component --install
@@ -96,14 +96,14 @@ sudo systemctl restart conflux-runtime
 
 在「节点」中选择已上报组件能力的主机，创建 Snell v6 实例。主机防火墙、云安全组和 NAT 映射都需要放行整个 TCP 端口范围。第一个端口用于协议探测，每份有效成员凭据独占一个端口和 PSK，计划轮换期间的新旧凭据各占一个。主机完成带认证的探测后，订阅才会发布成员端口。TCP 和 UDP 流量均通过 TCP 监听端口转发，并沿用原有配额账本与出站策略。
 
-自建节点支持 `default` 和 `unshaped` 两种直连模式。可导出 Surge、Mihomo、sing-box 和使用 sing-box 自定义出站的 v2rayN 配置。含 userkey 的外部节点可导出到 sing-box 和 v2rayN。外部来源还可显式使用 `unsafe-raw`，该模式以明文传输应用数据。
+自建节点支持 `default` 和 `unshaped` 两种直连模式。可导出 Surge、Mihomo、sing-box 和 v2rayN 配置，其中 v2rayN 使用 sing-box 自定义出站。Mihomo 和 sing-box 已通过实际流量测试，Surge Mac 已通过配置校验。原生 Surge 实流量和 Shadowrocket 真机互通仍待验证。含 userkey 的外部节点可导出到 sing-box 和 v2rayN。外部来源还可显式使用 `unsafe-raw`，该模式以明文传输应用数据。
 
 ### 远程 CLI
 
 在已校验的下载目录中执行：
 
 ```sh
-sh ./install-ctl.sh --version 0.0.16 --install-dir "$HOME/.local/bin"
+sh ./install-ctl.sh --version 0.0.17 --install-dir "$HOME/.local/bin"
 export PATH="$HOME/.local/bin:$PATH"
 conflux-ctl version
 
@@ -133,7 +133,7 @@ curl -fsSL https://raw.githubusercontent.com/veildawn/conflux-releases/main/depl
 CONFLUX_PUBLIC_BASE_URL=https://conflux.example.com
 CONFLUX_MASTER_KEY_HEX=REPLACE_WITH_PERSISTENT_64_HEX_CHARACTERS
 POSTGRES_PASSWORD=REPLACE_WITH_A_RANDOM_PASSWORD
-CONFLUX_SERVER_IMAGE=ghcr.io/veildawn/conflux-release:0.0.16
+CONFLUX_SERVER_IMAGE=ghcr.io/veildawn/conflux-release:0.0.17
 ```
 
 ```sh
@@ -158,7 +158,7 @@ docker compose logs --tail=50 conflux-server
 
 自 v0.0.7 起，新建协议表单默认使用该主机最近绑定的域名，包括证书仍在申请中的手动解析域名，也允许自行修改连接地址。TLS 协议仍需该地址对应的有效证书；REALITY 使用独立验证的握手目标与 SNI。
 
-升级控制端及节点组件后，可在协议表单中检查部署环境，查看 DNS、TCP/UDP 监听状态及 REALITY TLS 兼容性。创建时会再次检查环境；申请的端口被占用时，系统会选择空闲候选端口并保留现有网站服务。控制台会展示检测到的冲突和调整后的连接地址。主机本地端口空闲仍需防火墙或 NAT 放行，创建后的探测会检查实际可达性。旧版 Agent 需要升级才能提供这些检查。
+升级控制端及节点组件后，可在协议表单中检查部署环境，查看 DNS、TCP/UDP 监听状态及 REALITY TLS 兼容性。创建时会再次检查环境。手动指定的端口与其他受管实例冲突时，系统会拒绝创建。使用自动选端口时，系统可选择空闲候选端口，保留现有网站服务。控制台会展示检测到的冲突和调整后的连接地址。主机本地端口空闲仍需防火墙或 NAT 放行，创建后的探测会检查实际可达性。旧版 Agent 需要升级才能提供这些检查。
 
 ## 用户网络探测
 
@@ -175,6 +175,7 @@ v0.0.4 及后续版本会在管理控制台的节点页可见时自动检测当�
 - 五个组件的 Linux 双架构独立二进制，以及 macOS 双架构 CLI。
 - `conflux-server_<version>_linux_<arch>.tar.gz`，包含供自更新使用的 `conflux-server` 和 `conflux-ctl`。
 - `install-server.sh`、`install-agent.sh`、`install-ctl.sh` 与 `release-pubkey.pem`。
+- 每种 Linux 架构各有一份 `conflux-snell-component-<version>-linux-<arch>.json`，列出可选 Snell 组件的上游版本和 SHA-256 摘要。两份文件均包含在签名校验清单中。
 - `checksums.txt`、其 base64 编码的 Ed25519 签名 `checksums.txt.sig`，以及内容相同的兼容文件 `SHA256SUMS.txt`。校验清单覆盖二进制、压缩包、安装器和公钥。
 - 十份 Linux 组件 manifest、一份镜像摘要 manifest 及汇总 `manifests.json`，使用 `conflux-release-manifest-v1` 域签名。macOS CLI 由已签名的校验清单覆盖。
 - 与 runtime 二进制来自同一源码提交的 `conflux-runtime-<version>-source.tar.gz`，包含运行时模块的 README、许可证声明及固定依赖。参见 [LICENSE](LICENSE)。
