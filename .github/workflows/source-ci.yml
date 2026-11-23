@@ -84,14 +84,21 @@ jobs:
             local test_log="${RUNNER_TEMP}/source-ci-tests.json"
             if ! (cd "$source_dir" && go test -race -p 4 -count=1 -json ./...) > "$test_log"; then
               python3 - "$test_log" <<'PYTEST'
-          import json, sys
+          import json, re, sys
+          locations = {}
           for line in open(sys.argv[1]):
               try:
                   event = json.loads(line)
               except ValueError:
                   continue
+              key = (event.get("Package", ""), event.get("Test", ""))
+              # Only publish a test source location. Captured output can contain credentials.
+              if event.get("Action") == "output":
+                  match = re.match(r"^\s*([A-Za-z0-9_]+_test\.go:[0-9]+):", event.get("Output", ""))
+                  if match:
+                      locations[key] = match[1]
               if event.get("Action") == "fail":
-                  print("::error::Go test failed: " + event.get("Package", "") + " " + event.get("Test", ""))
+                  print("::error::Go test failed: " + " ".join((*key, locations.get(key, ""))).strip())
           PYTEST
               rm -f "$test_log"
               return 1
