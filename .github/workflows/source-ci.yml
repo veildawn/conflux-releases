@@ -75,7 +75,15 @@ jobs:
           (cd runtime && go build -o "${RUNNER_TEMP}/conflux-runtime" ./cmd/conflux-runtime)
           sudo "${RUNNER_TEMP}/conflux-runtime" snell-component --install
           version=$("${RUNNER_TEMP}/conflux-runtime" snell-component | jq -er .version)
-          echo "CONFLUX_TEST_SNELL_BIN=/usr/local/libexec/conflux/sing-box-${version}" >> "$GITHUB_ENV"
+          snell_bin=""
+          for cand in "/var/lib/conflux/components/sing-box-${version}" "/usr/local/libexec/conflux/sing-box-${version}"; do
+            if [ -x "$cand" ]; then
+              snell_bin="$cand"
+              break
+            fi
+          done
+          test -n "$snell_bin"
+          echo "CONFLUX_TEST_SNELL_BIN=${snell_bin}" >> "$GITHUB_ENV"
 
       - name: Run Go unit and integration tests
         run: |
