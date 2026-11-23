@@ -69,6 +69,14 @@ jobs:
           test -x "$PG_BINDIR/pg_ctl"
           echo "$PG_BINDIR" >> "$GITHUB_PATH"
 
+      - name: Verify optional Snell component and enable interoperability tests
+        if: ${{ hashFiles('_src/runtime/internal/snell/component.go') != '' }}
+        run: |
+          (cd runtime && go build -o "${RUNNER_TEMP}/conflux-runtime" ./cmd/conflux-runtime)
+          sudo "${RUNNER_TEMP}/conflux-runtime" snell-component --install
+          version=$("${RUNNER_TEMP}/conflux-runtime" snell-component | jq -er .version)
+          echo "CONFLUX_TEST_SNELL_BIN=/usr/local/libexec/conflux/sing-box-${version}" >> "$GITHUB_ENV"
+
       - name: Run Go unit and integration tests
         run: |
           run_go_tests() {

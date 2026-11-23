@@ -272,6 +272,14 @@ jobs:
             rm -rf "$stage_dir"
           done
 
+          # These public pins are covered by the signed conflux-*-linux-* checksums.
+          if [[ -f _src/runtime/internal/snell/component.go ]]; then
+            for arch in amd64 arm64; do
+              "${OUT_DIR}/conflux-runtime-${REL_VER}-linux-amd64" snell-component --linux-arch "$arch" \
+                > "${OUT_DIR}/conflux-snell-component-${REL_VER}-linux-${arch}.json"
+            done
+          fi
+
           # Remote CLI also supports macOS clients.
           for arch in amd64 arm64; do
             (cd _src && CGO_ENABLED=0 GOOS=darwin GOARCH="$arch" go build -trimpath \

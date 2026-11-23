@@ -85,6 +85,19 @@ sudo systemctl status conflux-agent conflux-runtime
 
 Keep the SQLite WAL ledger on local storage. Installers change firewall rules only when `--configure-firewall` is requested; open the configured proxy ports in host and cloud firewalls as needed.
 
+### Snell v6 support in the upcoming release
+
+On Linux amd64 and arm64, the agent installer accepts `--with-snell-v6`. The signed Conflux runtime verifies the archive and executable digests for upstream sing-box 1.14.4. The component runs as the runtime service account. For an existing host, upgrade to a release containing this feature, then install the component and restart the service.
+
+```sh
+sudo /usr/local/bin/conflux-runtime snell-component --install
+sudo systemctl restart conflux-runtime
+```
+
+In **Nodes**, create a Snell v6 instance on a host reporting the component. Allow its entire TCP port range in the host firewall, cloud firewall and any port mapping. The first port serves protocol probes. Each active member credential gets its own port and PSK, including both credentials during a planned rotation. Subscriptions publish a member port after an authenticated host check. The service forwards TCP and UDP over the TCP listener and uses the existing quota ledger and outbound policy.
+
+Managed nodes support direct connections in `default` and `unshaped` modes. Verified export formats are Surge, Mihomo, sing-box and v2rayN using its sing-box custom outbound. External sources with a userkey export to sing-box and v2rayN. Only external sources can use `unsafe-raw`, which sends application data in plaintext.
+
 ### Remote CLI
 
 From the verified download directory:

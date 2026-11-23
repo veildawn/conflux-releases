@@ -85,6 +85,19 @@ sudo systemctl status conflux-agent conflux-runtime
 
 SQLite WAL 账本必须保存在本地存储。只有显式传入 `--configure-firewall` 时安装器才会修改防火墙规则；请按实际协议端口配置主机防火墙和云安全组。
 
+### 下一版本的 Snell v6 支持
+
+Linux amd64 和 arm64 节点可在 Agent 安装器中加入 `--with-snell-v6`。已签名的 Conflux Runtime 会校验上游 sing-box 1.14.4 的压缩包和可执行文件摘要。组件以 Runtime 服务用户身份运行。现有主机升级到包含此功能的版本后，可以安装组件并重启服务。
+
+```sh
+sudo /usr/local/bin/conflux-runtime snell-component --install
+sudo systemctl restart conflux-runtime
+```
+
+在「节点」中选择已上报组件能力的主机，创建 Snell v6 实例。主机防火墙、云安全组和 NAT 映射都需要放行整个 TCP 端口范围。第一个端口用于协议探测，每份有效成员凭据独占一个端口和 PSK，计划轮换期间的新旧凭据各占一个。主机完成带认证的探测后，订阅才会发布成员端口。TCP 和 UDP 流量均通过 TCP 监听端口转发，并沿用原有配额账本与出站策略。
+
+自建节点支持 `default` 和 `unshaped` 两种直连模式。可导出 Surge、Mihomo、sing-box 和使用 sing-box 自定义出站的 v2rayN 配置。含 userkey 的外部节点可导出到 sing-box 和 v2rayN。外部来源还可显式使用 `unsafe-raw`，该模式以明文传输应用数据。
+
 ### 远程 CLI
 
 在已校验的下载目录中执行：
