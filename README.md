@@ -4,7 +4,7 @@
 
 Public downloads, deployment templates, CI, and releases for **Conflux**, a multi-tenant proxy node management platform with five built-in protocols, external subscription sharing, six-client subscription compilation, conserved traffic quotas (`L = U + R + A`), DNS/ACME automation, and a bilingual console.
 
-The current stable release is [v0.0.22](https://github.com/veildawn/conflux-releases/releases/tag/v0.0.22). See [all releases](https://github.com/veildawn/conflux-releases/releases) for release history. Application source is maintained in the private `veildawn/conflux-service` repository; all GitHub Actions run in this public repository. Actions are disabled in the private repository.
+The current stable release is [v0.0.23](https://github.com/veildawn/conflux-releases/releases/tag/v0.0.23). See [all releases](https://github.com/veildawn/conflux-releases/releases) for release history. Application source is maintained in the private `veildawn/conflux-service` repository; all GitHub Actions run in this public repository. Actions are disabled in the private repository.
 
 Clients connect to the selected node, which forwards traffic to the destination. The control server distributes subscriptions, configuration, and quota grants; ordinary proxy payload does not pass through it. Explicit node chaining adds the configured relay hops. The five built-in protocols are VLESS + REALITY, Hysteria2, Trojan, Shadowsocks 2022, and Snell v6. External subscriptions also support TUIC.
 
@@ -13,15 +13,16 @@ Clients connect to the selected node, which forwards traffic to the destination.
 | Artifact | Platforms |
 | --- | --- |
 | `conflux-server`, `conflux-agent`, `conflux-runtime`, `conflux-updater`, `conflux-ctl` | Linux `amd64` / `arm64` |
-| `conflux-ctl` | macOS (`darwin`) `amd64` / `arm64` |
-| `ghcr.io/veildawn/conflux-release:0.0.22` | Linux `amd64` / `arm64` container image |
-| `conflux-runtime-0.0.22-source.tar.gz` | Source for the GPL-3.0-or-later runtime embedding `Xray-core 26.11.9` and built-in Snell v6, dependency lockfiles, build instructions, and license notice |
+| `conflux-agent`, `conflux-ctl` | macOS (`darwin`) `amd64` / `arm64` |
+| `conflux-agent` (`monitor_only`) | Windows `amd64` / `arm64` |
+| `ghcr.io/veildawn/conflux-release:0.0.23` | Linux `amd64` / `arm64` container image |
+| `conflux-runtime-0.0.23-source.tar.gz` | Source for the GPL-3.0-or-later runtime embedding `Xray-core 26.11.9` and built-in Snell v6, dependency lockfiles, build instructions, and license notice |
 
 The [GHCR image](https://github.com/veildawn/conflux-releases/pkgs/container/conflux-release) is public and can be pulled without signing in. The package name is **`conflux-release`** (singular); this repository is **`conflux-releases`** (plural). Pin a version or digest for a reproducible deployment; `latest` is a mutable tag.
 
 ## Installation
 
-The examples below install **0.0.22** explicitly. Native server and Agent installers support Debian 12/13 and Ubuntu 22.04/24.04/26.04 with systemd, on `amd64` or `arm64`. They require root, local storage, `curl`, OpenSSL with Ed25519 support, `sha256sum`, and Python 3. The standalone CLI supports Linux and macOS.
+The examples below install **0.0.23** explicitly. Native server and Agent installers support Debian 12/13 and Ubuntu 22.04/24.04/26.04 with systemd, on `amd64` or `arm64`. They require root, local storage, `curl`, OpenSSL with Ed25519 support, `sha256sum`, and Python 3. Monitor-only Agent enrollment also supports Linux, macOS, Windows, and Docker; the standalone CLI supports Linux and macOS.
 
 ### Download and Verify Installers
 
@@ -29,7 +30,7 @@ Run in a new working directory. Download the checksum signature and installers f
 
 ```sh
 set -eu
-RELEASE_VERSION=0.0.22
+RELEASE_VERSION=0.0.23
 RELEASE_URL="https://github.com/veildawn/conflux-releases/releases/download/v${RELEASE_VERSION}"
 for file in release-pubkey.pem checksums.txt checksums.txt.sig install-server.sh install-agent.sh install-ctl.sh; do
   curl -fsSL "$RELEASE_URL/$file" -o "$file"
@@ -61,7 +62,7 @@ The fingerprint above and [release-pubkey.pem](release-pubkey.pem) are the publi
 From the verified download directory, supply an existing PostgreSQL database and your external HTTPS URL:
 
 ```sh
-sudo bash ./install-server.sh --version 0.0.22 \
+sudo bash ./install-server.sh --version 0.0.23 \
   --public-base-url https://conflux.example.com \
   --database-url 'postgres://conflux:REPLACE_WITH_PASSWORD@127.0.0.1:5432/conflux?sslmode=disable' \
   --release-pubkey-pem "$PWD/release-pubkey.pem"
@@ -76,7 +77,7 @@ Native installation listens on `127.0.0.1:8080`. Configure an HTTPS reverse prox
 Create a 15-minute enrollment token in **Hosts → Connect VPS**. Save it to a root-readable `0600` file on the target host, then run the verified installer there:
 
 ```sh
-sudo bash ./install-agent.sh --version 0.0.22 \
+sudo bash ./install-agent.sh --version 0.0.23 \
   --server https://conflux.example.com \
   --enroll-token-file /root/conflux-enroll-token \
   --release-pubkey-pem "$PWD/release-pubkey.pem"
@@ -98,7 +99,7 @@ Managed nodes support direct connections in `default` and `unshaped` modes. Subs
 From the verified download directory:
 
 ```sh
-sh ./install-ctl.sh --version 0.0.22 --install-dir "$HOME/.local/bin"
+sh ./install-ctl.sh --version 0.0.23 --install-dir "$HOME/.local/bin"
 export PATH="$HOME/.local/bin:$PATH"
 conflux-ctl version
 
@@ -128,7 +129,7 @@ Create a `0600` `.env` file alongside it, replacing both secret placeholders wit
 CONFLUX_PUBLIC_BASE_URL=https://conflux.example.com
 CONFLUX_MASTER_KEY_HEX=REPLACE_WITH_PERSISTENT_64_HEX_CHARACTERS
 POSTGRES_PASSWORD=REPLACE_WITH_A_RANDOM_PASSWORD
-CONFLUX_SERVER_IMAGE=ghcr.io/veildawn/conflux-release:0.0.22
+CONFLUX_SERVER_IMAGE=ghcr.io/veildawn/conflux-release:0.0.23
 ```
 
 ```sh
@@ -167,11 +168,11 @@ For the published v0.0.3 release, follow the [v0.0.3 device probe instructions](
 
 Each release includes:
 
-- Standalone Linux binaries for all five components and macOS CLI binaries.
+- Standalone Linux binaries for all five components, macOS CLI and monitor-only Agent binaries, and Windows monitor-only Agent binaries.
 - `conflux-server_<version>_linux_<arch>.tar.gz` containing `conflux-server` and `conflux-ctl` for self-update.
-- `install-server.sh`, `install-agent.sh`, `install-ctl.sh`, and `release-pubkey.pem`.
+- `install-server.sh`, `install-agent.sh`, `install-agent.ps1`, `install-ctl.sh`, and `release-pubkey.pem`.
 - Signed `checksums.txt`, its base64 Ed25519 signature `checksums.txt.sig`, and the identical `SHA256SUMS.txt` compatibility alias. The checksum list covers binaries, archives, installers, and the public key.
-- Ten Linux component manifests, a container-image digest manifest, and combined `manifests.json`, signed with the `conflux-release-manifest-v1` domain. macOS CLI assets are covered by signed checksums.
+- Ten Linux component manifests, a container-image digest manifest, and combined `manifests.json`, signed with the `conflux-release-manifest-v1` domain. macOS and Windows binaries are covered by signed checksums.
 - `conflux-runtime-<version>-source.tar.gz` from the same source commit as the runtime binary (`GPL-3.0-or-later`, with `Xray-core` under `MPL-2.0` and built-in Snell v6 under `GPL-3.0-or-later`). It contains the runtime module's README, license notice, adapter inventory, and pinned dependencies. See [LICENSE](LICENSE).
 
 To build the published runtime source, extract its archive, use the Go version declared in its `go.mod`, and run `go test ./...` and `go build ./cmd/conflux-runtime`. The public repository itself does not contain the application source tree.
@@ -181,7 +182,7 @@ To build the published runtime source, extract its archive, use the Go version d
 | Workflow | Trigger and purpose |
 | --- | --- |
 | [Verify Release Repo](.github/workflows/ci.yml) | Public `main` pushes and pull requests; checks the public key and Compose file |
-| [Source CI](.github/workflows/source-ci.yml) | Manual `source_ref` or `repository_dispatch` type `source-ci`; verifies private source, frontend, both Go modules with race detection, and cross-builds the Linux components |
+| [Source CI](.github/workflows/source-ci.yml) | Manual `source_ref` or `repository_dispatch` type `source-ci`; verifies private source, frontend, both Go modules with race detection, and cross-builds the Linux, macOS, and Windows components |
 | [Release](.github/workflows/release.yml) | Manual version/source/channel inputs, reusable workflow call, or public `v*` tag push; builds, signs, and publishes artifacts and the image |
 | [Release request](.github/workflows/release-request.yml) | Push changing `.github/release-requests/*.json`; invokes the reusable release workflow |
 

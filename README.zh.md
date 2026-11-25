@@ -4,7 +4,7 @@
 
 **Conflux** 的公开下载、部署模板、CI 与版本发布仓库。Conflux 是多租户代理节点管理平台，支持五种内置协议、外部订阅共享、六类客户端订阅编译、守恒流量额度（`L = U + R + A`）、DNS/ACME 自动化与双语控制台。
 
-当前稳定版本为 [v0.0.22](https://github.com/veildawn/conflux-releases/releases/tag/v0.0.22)，历史版本见[发布列表](https://github.com/veildawn/conflux-releases/releases)。应用源码在私有仓库 `veildawn/conflux-service` 中维护；**所有 GitHub Actions 均在本公开仓库运行**，私有仓库的 Actions 已关闭。
+当前稳定版本为 [v0.0.23](https://github.com/veildawn/conflux-releases/releases/tag/v0.0.23)，历史版本见[发布列表](https://github.com/veildawn/conflux-releases/releases)。应用源码在私有仓库 `veildawn/conflux-service` 中维护；**所有 GitHub Actions 均在本公开仓库运行**，私有仓库的 Actions 已关闭。
 
 客户端直接连接所选节点，由节点向目标网站转发流量。控制服务器负责订阅、配置与额度分发，普通代理数据不经过控制服务器；显式配置节点链路时才会增加指定的中转节点。五种内置协议为 VLESS + REALITY、Hysteria2、Trojan、Shadowsocks 2022 和 Snell v6，外部订阅也支持 TUIC。
 
@@ -13,15 +13,16 @@
 | 产物 | 支持平台 |
 | --- | --- |
 | `conflux-server`、`conflux-agent`、`conflux-runtime`、`conflux-updater`、`conflux-ctl` | Linux `amd64` / `arm64` |
-| `conflux-ctl` | macOS（`darwin`）`amd64` / `arm64` |
-| `ghcr.io/veildawn/conflux-release:0.0.22` | Linux `amd64` / `arm64` 容器镜像 |
-| `conflux-runtime-0.0.22-source.tar.gz` | 嵌入 `Xray-core 26.11.9` 与内置 Snell v6 的 GPL-3.0-or-later 运行时对应源码、依赖锁定文件、构建说明和许可证声明 |
+| `conflux-agent`、`conflux-ctl` | macOS（`darwin`）`amd64` / `arm64` |
+| `conflux-agent`（`monitor_only`） | Windows `amd64` / `arm64` |
+| `ghcr.io/veildawn/conflux-release:0.0.23` | Linux `amd64` / `arm64` 容器镜像 |
+| `conflux-runtime-0.0.23-source.tar.gz` | 嵌入 `Xray-core 26.11.9` 与内置 Snell v6 的 GPL-3.0-or-later 运行时对应源码、依赖锁定文件、构建说明和许可证声明 |
 
 [GHCR 镜像](https://github.com/veildawn/conflux-releases/pkgs/container/conflux-release)已公开，无需登录即可拉取。镜像包名为 **`conflux-release`**（单数），仓库名为 **`conflux-releases`**（复数）。部署时固定版本或镜像摘要，便于复现；`latest` 是可变标签。
 
 ## 安装
 
-以下示例明确安装 **0.0.22**。原生控制端与 Agent 安装器支持使用 systemd 的 Debian 12/13、Ubuntu 22.04/24.04/26.04，以及 `amd64` / `arm64` 架构；需要 root、本地存储、`curl`、支持 Ed25519 的 OpenSSL、`sha256sum` 和 Python 3。独立 CLI 支持 Linux 和 macOS。
+以下示例明确安装 **0.0.23**。原生控制端与 Agent 安装器支持使用 systemd 的 Debian 12/13、Ubuntu 22.04/24.04/26.04，以及 `amd64` / `arm64` 架构；需要 root、本地存储、`curl`、支持 Ed25519 的 OpenSSL、`sha256sum` 和 Python 3。`monitor_only` 监控模式 Agent 还支持 Linux、macOS、Windows 与容器部署；独立 CLI 支持 Linux 和 macOS。
 
 ### 下载并校验安装脚本
 
@@ -29,7 +30,7 @@
 
 ```sh
 set -eu
-RELEASE_VERSION=0.0.22
+RELEASE_VERSION=0.0.23
 RELEASE_URL="https://github.com/veildawn/conflux-releases/releases/download/v${RELEASE_VERSION}"
 for file in release-pubkey.pem checksums.txt checksums.txt.sig install-server.sh install-agent.sh install-ctl.sh; do
   curl -fsSL "$RELEASE_URL/$file" -o "$file"
@@ -61,7 +62,7 @@ PY
 在已校验的下载目录中执行，填写已有 PostgreSQL 数据库连接和对外 HTTPS 地址：
 
 ```sh
-sudo bash ./install-server.sh --version 0.0.22 \
+sudo bash ./install-server.sh --version 0.0.23 \
   --public-base-url https://conflux.example.com \
   --database-url 'postgres://conflux:REPLACE_WITH_PASSWORD@127.0.0.1:5432/conflux?sslmode=disable' \
   --release-pubkey-pem "$PWD/release-pubkey.pem"
@@ -76,7 +77,7 @@ sudo journalctl -u conflux-server -n 50 --no-pager
 在管理后台「主机管理 → 接入 VPS」生成 15 分钟有效的注册令牌。在目标主机上将令牌存入 root 可读、权限为 `0600` 的文件，再运行已校验的安装器：
 
 ```sh
-sudo bash ./install-agent.sh --version 0.0.22 \
+sudo bash ./install-agent.sh --version 0.0.23 \
   --server https://conflux.example.com \
   --enroll-token-file /root/conflux-enroll-token \
   --release-pubkey-pem "$PWD/release-pubkey.pem"
@@ -98,7 +99,7 @@ SQLite WAL 账本必须保存在本地存储。只有显式传入 `--configure-f
 在已校验的下载目录中执行：
 
 ```sh
-sh ./install-ctl.sh --version 0.0.22 --install-dir "$HOME/.local/bin"
+sh ./install-ctl.sh --version 0.0.23 --install-dir "$HOME/.local/bin"
 export PATH="$HOME/.local/bin:$PATH"
 conflux-ctl version
 
@@ -128,7 +129,7 @@ curl -fsSL https://raw.githubusercontent.com/veildawn/conflux-releases/main/depl
 CONFLUX_PUBLIC_BASE_URL=https://conflux.example.com
 CONFLUX_MASTER_KEY_HEX=REPLACE_WITH_PERSISTENT_64_HEX_CHARACTERS
 POSTGRES_PASSWORD=REPLACE_WITH_A_RANDOM_PASSWORD
-CONFLUX_SERVER_IMAGE=ghcr.io/veildawn/conflux-release:0.0.22
+CONFLUX_SERVER_IMAGE=ghcr.io/veildawn/conflux-release:0.0.23
 ```
 
 ```sh
@@ -167,11 +168,11 @@ v0.0.4 及后续版本会在管理控制台的节点页可见时自动检测当�
 
 每个版本包含：
 
-- 五个组件的 Linux 双架构独立二进制，以及 macOS 双架构 CLI。
+- 五个组件的 Linux 双架构独立二进制，macOS 双架构 CLI 与监控模式 Agent，以及 Windows 双架构监控模式 Agent。
 - `conflux-server_<version>_linux_<arch>.tar.gz`，包含供自更新使用的 `conflux-server` 和 `conflux-ctl`。
-- `install-server.sh`、`install-agent.sh`、`install-ctl.sh` 与 `release-pubkey.pem`。
+- `install-server.sh`、`install-agent.sh`、`install-agent.ps1`、`install-ctl.sh` 与 `release-pubkey.pem`。
 - `checksums.txt`、其 base64 编码的 Ed25519 签名 `checksums.txt.sig`，以及内容相同的兼容文件 `SHA256SUMS.txt`。校验清单覆盖二进制、压缩包、安装器和公钥。
-- 十份 Linux 组件 manifest、一份镜像摘要 manifest 及汇总 `manifests.json`，使用 `conflux-release-manifest-v1` 域签名。macOS CLI 由已签名的校验清单覆盖。
+- 十份 Linux 组件 manifest、一份镜像摘要 manifest 及汇总 `manifests.json`，使用 `conflux-release-manifest-v1` 域签名。macOS 与 Windows 二进制由已签名的校验清单覆盖。
 - 与 runtime 二进制来自同一源码提交的 `conflux-runtime-<version>-source.tar.gz`（整体 `GPL-3.0-or-later`，含 `Xray-core` `MPL-2.0` 与内置 Snell v6 `GPL-3.0-or-later`），包含运行时模块的 README、许可证声明、适配清单及固定依赖。参见 [LICENSE](LICENSE)。
 
 如需构建发布的运行时源码，解压源码包，使用其中 `go.mod` 声明的 Go 版本，再执行 `go test ./...` 和 `go build ./cmd/conflux-runtime`。本公开仓库本身不包含应用源码树。
@@ -181,7 +182,7 @@ v0.0.4 及后续版本会在管理控制台的节点页可见时自动检测当�
 | 流水线 | 触发方式与用途 |
 | --- | --- |
 | [Verify Release Repo](.github/workflows/ci.yml) | 公开仓库 `main` 分支推送及 PR；检查公钥和 Compose 文件 |
-| [Source CI](.github/workflows/source-ci.yml) | 手动指定 `source_ref`，或 `source-ci` 类型的 `repository_dispatch`；验证私有源码、前端、两个 Go 模块的竞态测试，并交叉构建 Linux 组件 |
+| [Source CI](.github/workflows/source-ci.yml) | 手动指定 `source_ref`，或 `source-ci` 类型的 `repository_dispatch`；验证私有源码、前端、两个 Go 模块的竞态测试，并交叉构建 Linux、macOS 与 Windows 组件 |
 | [Release](.github/workflows/release.yml) | 手动指定版本、源码和通道，可复用工作流调用，或公开仓库 `v*` 标签推送；构建、签名并发布产物与镜像 |
 | [Release request](.github/workflows/release-request.yml) | 推送变更 `.github/release-requests/*.json`；调用可复用发布流水线 |
 

@@ -10,7 +10,7 @@
 ## Workflow Map
 
 - [ci.yml](.github/workflows/ci.yml): automatic public `main` push/PR checks for the release public key and Compose file.
-- [source-ci.yml](.github/workflows/source-ci.yml): manual `source_ref` or `repository_dispatch` type `source-ci`; reads private source and runs the license boundary check, UI consistency, frontend checks/build, race-enabled tests in both Go modules, and Linux cross-builds.
+- [source-ci.yml](.github/workflows/source-ci.yml): manual `source_ref` or `repository_dispatch` type `source-ci`; reads private source and runs the license boundary check, UI consistency, frontend checks/build, race-enabled tests in both Go modules, and Linux/macOS/Windows cross-builds.
 - [release.yml](.github/workflows/release.yml): manual/reusable release, or public `v*` tag push; resolves private source to a SHA, builds binaries/source archives/images, signs, and publishes. Manual inputs are `version`, `source_ref`, `channel`, and optional `changelog`. `since_sha` is a reusable-workflow input, not a manual dispatch input.
 - [release-request.yml](.github/workflows/release-request.yml): a push changing `.github/release-requests/*.json` invokes `release.yml`. Requests accept `version`, `source_ref`, `channel`, optional `changelog` and `since_sha`; submit one request per push and use a full source SHA.
 
@@ -38,7 +38,7 @@ Use the **private repository's** SHA, never the current public repository's HEAD
 - Preserve the GPL module/process boundary: root `cmd/` and `internal/` must not import `conflux-runtime` or `sagernet/sing-box`. Run the source repository's `scripts/release/verify-license-boundary.sh` before publishing.
 - Release a new version only from a pushed source SHA that passed public Source CI. Create the private source version tag at the exact commit being built. The public release tag belongs to this distribution repository and has a different commit SHA.
 - Keep published tags and assets intact; ship corrections as a new version. A public `v*` tag push starts a release and requires the same source tag to exist; prefer explicit manual dispatch with a full source SHA.
-- Preserve Linux `amd64`/`arm64` binaries for server, Agent, runtime, updater, and CLI; macOS `amd64`/`arm64` CLI binaries; self-update archives containing server and CLI; all three installers; signed checksums; signed manifests; the runtime source archive; and the multi-architecture container image.
+- Preserve Linux `amd64`/`arm64` binaries for server, Agent, runtime, updater, and CLI; macOS `amd64`/`arm64` CLI and monitor-only Agent binaries; Windows `amd64`/`arm64` monitor-only Agent binaries; self-update archives containing server and CLI; all installers (`install-server.sh`, `install-agent.sh`, `install-agent.ps1`, `install-ctl.sh`); signed checksums; signed manifests; the runtime source archive; and the multi-architecture container image.
 - Runtime source must come from the same source SHA as the runtime binary and include its dependency pins, build instructions, and license notice. Do not package the root/private application tree as the runtime source archive.
 - The image name is `ghcr.io/veildawn/conflux-release` (singular). The repository is `veildawn/conflux-releases` (plural). Preserve public package visibility and verify anonymous image access; public repository visibility alone does not verify package visibility.
 
@@ -47,7 +47,7 @@ Use the **private repository's** SHA, never the current public repository's HEAD
 - `RELEASE_SIGNING_KEY` is a base64 64-byte Ed25519 private key stored only in Actions secrets. `RELEASE_PUBLIC_KEY` is the base64 32-byte public key embedded in release builds. Never print or commit private keys.
 - Keep [release-pubkey.pem](release-pubkey.pem), the source installer public key, and the configured signing identity aligned. Do not rotate keys as part of routine maintenance.
 - `checksums.txt.sig` is base64 Ed25519 over the exact bytes of `checksums.txt`. `SHA256SUMS.txt` must be an identical alias. Checksums cover binaries, archives, installers, and the public key.
-- Manifests use domain-separated `conflux-release-manifest-v1` signatures binding component, version, OS, architecture, digest, and source commits. Preserve the signer's canonical encoding. The five Linux components and the image have individual manifests. Signed checksums also cover the macOS CLI and the network probe binaries for Linux, macOS, and Windows.
+- Manifests use domain-separated `conflux-release-manifest-v1` signatures binding component, version, OS, architecture, digest, and source commits. Preserve the signer's canonical encoding. The five Linux components and the image have individual manifests. Signed checksums also cover the macOS CLI/Agent, Windows Agent, and the network probe binaries for Linux, macOS, and Windows.
 - The server and Agent installers verify binary manifests. The CLI installer verifies signed checksums for GitHub Releases downloads and checks the `X-Artifact-SHA256` response header for direct control-plane downloads.
 - Before declaring a release complete, verify its run succeeded, artifacts can be downloaded anonymously, signatures/digests validate against the trusted key, self-update archive contents match standalone binaries, the runtime source matches the recorded source SHA, and the image index supports `linux/amd64` and `linux/arm64`.
 
