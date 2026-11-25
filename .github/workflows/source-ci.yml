@@ -116,13 +116,15 @@ jobs:
           run_go_tests .
           run_go_tests runtime
 
-      - name: Cross-build Linux amd64 and arm64 binaries
+      - name: Cross-build Linux, macOS, and Windows binaries
         run: |
           for arch in amd64 arm64; do
             for bin in conflux-server conflux-agent conflux-updater conflux-ctl; do
               CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath -o "/tmp/bin-${arch}/${bin}" "./cmd/${bin}"
             done
             (cd runtime && CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath -o "/tmp/bin-${arch}/conflux-runtime" ./cmd/conflux-runtime)
+            CGO_ENABLED=0 GOOS=darwin GOARCH="$arch" go build -trimpath -o "/tmp/bin-darwin-${arch}/conflux-agent" ./cmd/conflux-agent
+            CGO_ENABLED=0 GOOS=windows GOARCH="$arch" go build -trimpath -o "/tmp/bin-windows-${arch}/conflux-agent.exe" ./cmd/conflux-agent
           done
 
       - name: Scrub private checkout

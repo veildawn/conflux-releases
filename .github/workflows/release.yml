@@ -280,17 +280,26 @@ jobs:
             done
           fi
 
-          # Remote CLI also supports macOS clients.
+          # Remote CLI and monitor-only Host Agent also support macOS and Windows clients.
           for arch in amd64 arm64; do
             (cd _src && CGO_ENABLED=0 GOOS=darwin GOARCH="$arch" go build -trimpath \
               -ldflags="$LDFLAGS" \
               -o "${OUT_DIR}/conflux-ctl-${REL_VER}-darwin-${arch}" ./cmd/conflux-ctl) >/dev/null
+            (cd _src && CGO_ENABLED=0 GOOS=darwin GOARCH="$arch" go build -trimpath \
+              -ldflags="$LDFLAGS" \
+              -o "${OUT_DIR}/conflux-agent-${REL_VER}-darwin-${arch}" ./cmd/conflux-agent) >/dev/null
+            (cd _src && CGO_ENABLED=0 GOOS=windows GOARCH="$arch" go build -trimpath \
+              -ldflags="$LDFLAGS" \
+              -o "${OUT_DIR}/conflux-agent-${REL_VER}-windows-${arch}.exe" ./cmd/conflux-agent) >/dev/null
           done
 
           echo "[release] Stage 4: Package GPL corresponding runtime source & installers"
           tar -czf "${OUT_DIR}/conflux-runtime-${REL_VER}-source.tar.gz" --exclude='.git' -C _src/runtime .
           cp _src/deploy/install/install-server.sh "${OUT_DIR}/install-server.sh"
           cp _src/deploy/install/install-agent.sh "${OUT_DIR}/install-agent.sh"
+          if [[ -f _src/deploy/install/install-agent.ps1 ]]; then
+            cp _src/deploy/install/install-agent.ps1 "${OUT_DIR}/install-agent.ps1"
+          fi
           cp _src/deploy/install/install-ctl.sh "${OUT_DIR}/install-ctl.sh"
           cp _src/deploy/install/release-pubkey.pem "${OUT_DIR}/release-pubkey.pem"
 
@@ -403,8 +412,8 @@ jobs:
           (
             cd dist
             shopt -s nullglob
-            sha256sum -- *.tar.gz conflux-*-linux-* conflux-ctl-*-darwin-* \
-              *.sh *.pem > checksums.txt
+            sha256sum -- *.tar.gz conflux-*-linux-* conflux-*-darwin-* conflux-*-windows-* \
+              *.sh *.ps1 *.pem > checksums.txt
           )
           cp dist/checksums.txt dist/SHA256SUMS.txt
           (cd _signer_src && go run ./scripts/release-sign "${GITHUB_WORKSPACE}/dist/checksums.txt")
