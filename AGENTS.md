@@ -48,7 +48,7 @@ Use the **private repository's** SHA, never the current public repository's HEAD
 - Keep [release-pubkey.pem](release-pubkey.pem), the source installer public key, and the configured signing identity aligned. Do not rotate keys as part of routine maintenance.
 - `checksums.txt.sig` is base64 Ed25519 over the exact bytes of `checksums.txt`. `SHA256SUMS.txt` must be an identical alias. Checksums cover binaries, archives, installers, and the public key.
 - Manifests use domain-separated `conflux-release-manifest-v1` signatures binding component, version, OS, architecture, digest, and source commits. Preserve the signer's canonical encoding. The five Linux components and the image have individual manifests. Signed checksums also cover the macOS CLI/Agent, Windows Agent, and the network probe binaries for Linux, macOS, and Windows.
-- The server and Agent installers verify binary manifests. The CLI installer verifies signed checksums for GitHub Releases downloads and checks the `X-Artifact-SHA256` response header for direct control-plane downloads.
+- The server and Agent installers verify binary manifests. The CLI installer verifies signed checksums for GitHub Releases downloads and checks both the `X-Artifact-SHA256` response header and the `.manifest.json` Ed25519 signature for direct control-plane downloads (falling back to verified GitHub Releases assets when unavailable).
 - Before declaring a release complete, verify its run succeeded, artifacts can be downloaded anonymously, signatures/digests validate against the trusted key, self-update archive contents match standalone binaries, the runtime source matches the recorded source SHA, and the image index supports `linux/amd64` and `linux/arm64`.
 
 ## Verification Before Commit
